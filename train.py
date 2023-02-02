@@ -580,12 +580,10 @@ if __name__ == '__main__':
   params['enable_amp'] = args.enable_amp
 
   # this will be the wandb name
-#  params['name'] = args.config + '_' + str(args.run_num)
-#  params['group'] = "era5_wind" + args.config
   params['name'] = args.config + '_' + str(args.run_num)
-  params['group'] = "era5_precip" + args.config
-  params['project'] = "ERA5_precip"
-  params['entity'] = "flowgan"
+  params['group'] = "fourcastnet-era5" + args.config
+  params['project'] = "fourcastnet-era5"
+  params['entity'] = "ai2cm"
   if world_rank==0:
     logging_utils.log_to_file(logger_name=None, log_filename=os.path.join(expDir, 'out.log'))
     logging_utils.log_versions()
