@@ -1,4 +1,3 @@
-#REGISTRY ?= us.gcr.io/vcm-ml
 VERSION ?= $(shell git rev-parse HEAD)
 IMAGE ?= fourcastnet
 
