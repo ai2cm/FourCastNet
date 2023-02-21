@@ -391,10 +391,15 @@ class Trainer():
             except:
                 pass
             #save first channel of image
+            image_path = params['experiment_dir'] + "/" + str(i) + "/" + str(self.epoch) + ".png"
             if self.params.two_step_training:
-                save_image(torch.cat((gen_step_one[0,0], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,0]), axis = 1), params['experiment_dir'] + "/" + str(i) + "/" + str(self.epoch) + ".png")
+                image = torch.cat((gen_step_one[0,0], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,0]), axis = 1)
             else:
-                save_image(torch.cat((gen[0,0], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,0]), axis = 1), params['experiment_dir'] + "/" + str(i) + "/" + str(self.epoch) + ".png")
+                image = torch.cat((gen[0,0], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,0]), axis = 1)
+            print(gen.shape)
+            save_image(image, image_path)
+            wandb_image = wandb.Image(image, caption='Channel 0 one step prediction, (left) generated and (right) target.')
+            wandb.log({'channel_0_image': wandb_image})
 
            
     if dist.is_initialized():
