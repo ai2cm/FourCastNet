@@ -386,13 +386,9 @@ class Trainer():
 
 
         if not self.precip:
-            try:
-                os.mkdir(params['experiment_dir'] + "/" + str(i))
-            except:
-                pass
-            
             for j in range(gen.shape[1]):
               image_path = os.path.join(params['experiment_dir'], f'sample{i}', f'channel{j}', f'epoch{self.epoch}.png')
+              os.makedirs(os.path.dirname(image_path), exist_ok=True)
               if self.params.two_step_training:
                   image = torch.cat((gen_step_one[0,j], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,j]), axis = 1)
               else:
