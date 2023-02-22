@@ -461,7 +461,8 @@ if __name__ == '__main__':
             gap = np.zeros((prediction_length, n_out_channels, img_shape_x, 10))
             video_data = np.concatenate((seq_pred[0], gap, seq_real[0]), axis=-1)
             for c in range(n_out_channels):
-              wandb_video = wandb.Video(video_data[:, c, :, :], caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
+              # wandb.Video requires 4D array, hence keeping singleton channel dim
+              wandb_video = wandb.Video(video_data[:, [c], :, :], caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
               wandb.log({f'prediction_video_channel{c}': wandb_video})
 
       if params.masked_acc:
