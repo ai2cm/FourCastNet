@@ -14,7 +14,8 @@ RUN pip install wandb && \
     pip install ruamel.yaml && \
     pip install --upgrade tqdm && \
     pip install timm && \
-    pip install einops
+    pip install einops && \
+    pip install moviepy imagio
 
 # benchy
 RUN pip install git+https://github.com/romerojosh/benchy.git
