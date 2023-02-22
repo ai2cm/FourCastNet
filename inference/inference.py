@@ -318,6 +318,7 @@ if __name__ == '__main__':
 
     torch.cuda.set_device(0)
     torch.backends.cudnn.benchmark = True
+    #device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
     vis = args.vis
 
     # Set up directory
@@ -339,6 +340,9 @@ if __name__ == '__main__':
     logging_utils.log_to_file(logger_name=None, log_filename=os.path.join(expDir, 'inference_out.log'))
     logging_utils.log_versions()
     params.log()
+
+    if params.log_to_wandb:
+       wandb.init(config=params, group=params.group, project=params.project, entity=params.entity)
 
     n_ics = params['n_initial_conditions']
 
@@ -453,6 +457,12 @@ if __name__ == '__main__':
             del f["predicted"]
             f.create_dataset("predicted", data = seq_pred, shape = (n_ics, prediction_length, n_out_channels, img_shape_x, img_shape_y), dtype = np.float32)
             f["predicted"][...]= seq_pred
+
+            if params.log_to_wandb:
+               gap = torch.zeros((prediction_length, n_out_channels, img_shape_x, 10))
+               video_data = torch.cat((seq_pred, gap, seq_real), axis=3)
+               wandb_video = wandb.Video(video_data, caption='Video of autoregressive prediction')
+               wandb.log({'prediction_video': wandb_video})
 
       if params.masked_acc:
         try:
