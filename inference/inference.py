@@ -459,7 +459,7 @@ if __name__ == '__main__':
 
         if params.log_to_wandb:
             gap = np.zeros((prediction_length, n_out_channels, img_shape_x, 10))
-            video_data = np.concatenate((seq_pred, gap, seq_real), axis=-1)
+            video_data = np.concatenate((seq_pred[0], gap, seq_real[0]), axis=-1)
             wandb_video = wandb.Video(video_data, caption='Video of autoregressive prediction')
             wandb.log({'prediction_video': wandb_video})
 
