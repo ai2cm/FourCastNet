@@ -318,7 +318,6 @@ if __name__ == '__main__':
 
     torch.cuda.set_device(0)
     torch.backends.cudnn.benchmark = True
-    device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
     vis = args.vis
 
     # Set up directory
@@ -459,8 +458,8 @@ if __name__ == '__main__':
             f["predicted"][...]= seq_pred
 
         if params.log_to_wandb:
-            gap = torch.zeros((prediction_length, n_out_channels, img_shape_x, 10)).to(device, dtype=torch.float)
-            video_data = torch.cat((seq_pred, gap, seq_real), axis=3)
+            gap = np.zeros((prediction_length, n_out_channels, img_shape_x, 10))
+            video_data = np.concatenate((seq_pred, gap, seq_real), axis=-1)
             wandb_video = wandb.Video(video_data, caption='Video of autoregressive prediction')
             wandb.log({'prediction_video': wandb_video})
 
