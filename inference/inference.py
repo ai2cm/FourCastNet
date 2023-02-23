@@ -462,7 +462,13 @@ if __name__ == '__main__':
             video_data = np.concatenate((seq_pred[0], gap, seq_real[0]), axis=-1)
             for c in range(n_out_channels):
               # wandb.Video requires 4D array, hence keeping singleton channel dim
-              wandb_video = wandb.Video(video_data[:, [c], :, :], caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
+              channel_video_data = video_data[:, [c], :, :]
+              # rescale appropriately given that wandb.Video casts data to np.uint8
+              # use 'real' data for scaling
+              data_min = np.min(seq_real[0][:, c, :, :])
+              data_max = np.max(seq_real[0][:, c, :, :])
+              channel_video_data = 255 * (channel_video_data - data_min) / (data_max - data_min)
+              wandb_video = wandb.Video(channel_video_data, caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
               wandb.log({f'prediction_video_channel{c}': wandb_video})
 
       if params.masked_acc:
