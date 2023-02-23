@@ -464,10 +464,13 @@ if __name__ == '__main__':
               # wandb.Video requires 4D array, hence keeping singleton channel dim
               channel_video_data = video_data[:, [c], :, :]
               # rescale appropriately given that wandb.Video casts data to np.uint8
-              # use 'real' data for scaling
-              data_min = np.min(seq_real[0][:, c, :, :])
-              data_max = np.max(seq_real[0][:, c, :, :])
+              # use 'real' data for determining max/min scaling bounds. 'pred' data
+              # may saturate bounds, so clip at 0 and 255.
+              data_min = seq_real[0][:, c, :, :].min()
+              data_max = seq_real[0][:, c, :, :].max()
               channel_video_data = 255 * (channel_video_data - data_min) / (data_max - data_min)
+              channel_video_data = np.minimum(channel_video_data, 255)
+              channel_video_data = np.maximum(channel_video_data, 0)
               wandb_video = wandb.Video(channel_video_data, caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
               wandb.log({f'prediction_video_channel{c}': wandb_video})
 
