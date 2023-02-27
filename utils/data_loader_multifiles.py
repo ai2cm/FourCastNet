@@ -56,11 +56,19 @@ import h5py
 import math
 #import cv2
 from utils.img_utils import reshape_fields, reshape_precip
+from utils.data_loader_fv3gfs import FV3GFSDataset
 
 
 def get_data_loader(params, files_pattern, distributed, train):
 
-  dataset = GetDataset(params, files_pattern, train)
+  data_type = params.data_type if 'data_type' in params else 'ERA5'
+  if data_type == 'ERA5':
+    dataset = GetDataset(params, files_pattern, train)
+  elif data_type == 'FV3GFS':
+    dataset = FV3GFSDataset(params, files_pattern, train)
+  else:
+    raise NotImplementedError(f'{data_type} does not have an implemented data loader')
+  
   sampler = DistributedSampler(dataset, shuffle=train) if distributed else None
   
   dataloader = DataLoader(dataset,
