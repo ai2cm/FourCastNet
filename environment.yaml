@@ -13,5 +13,6 @@ dependencies:
   - einops
   - moviepy
   - imageio
+  - matplotlib
   - netCDF4
   - pytest
