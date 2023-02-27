@@ -34,10 +34,9 @@ FV3GFS_NAMES = {
 
 
 class FV3GFSDataset(Dataset):
-    def __init__(self, params: MutableMapping, path: str, stats_path: str, train: bool):
+    def __init__(self, params: MutableMapping, path: str, train: bool):
         self.params = params
         self._check_for_not_implemented_features()
-        self.stats_path = stats_path
         self.path = path
         self.full_path = os.path.join(path, "*.nc")
         self.train = train
@@ -95,16 +94,16 @@ class FV3GFSDataset(Dataset):
         logging.info(f"Following variables are available: {list(self.file.variables)}.")
 
     def _load_stats_data(self):
-        logging.info(f"Opening mean stats data at {self.stats_path}/fv3gfs-mean.nc")
-        means_file = netCDF4.Dataset(os.path.join(self.stats_path, "fv3gfs-mean.nc"))
+        logging.info(f"Opening mean stats data at {self.params.global_means_path}")
+        means_file = netCDF4.Dataset(self.params.global_means_path)
         self.in_means = np.array([means_file.variables[c][:] for c in self.in_names])
         self.out_means = np.array([means_file.variables[c][:] for c in self.out_names])
         self.in_means = self.in_means.reshape((1, self.n_in_channels, 1, 1))
         self.out_means = self.out_means.reshape((1, self.n_out_channels, 1, 1))
         means_file.close()
 
-        logging.info(f"Opening stddev stats data at {self.stats_path}/fv3gfs-stddev.nc")
-        stddev_file = netCDF4.Dataset(os.path.join(self.stats_path, "fv3gfs-stddev.nc"))
+        logging.info(f"Opening stddev stats data at {self.params.global_stds_path}")
+        stddev_file = netCDF4.Dataset(self.params.global_stds_path)
         self.in_stds = np.array([stddev_file.variables[c][:] for c in self.in_names])
         self.out_stds = np.array([stddev_file.variables[c][:] for c in self.out_names])
         self.in_stds = self.in_stds.reshape((1, self.n_in_channels, 1, 1))
