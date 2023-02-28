@@ -187,7 +187,7 @@ class AFNONet(nn.Module):
         ):
         super().__init__()
         self.params = params
-        self.img_size = img_size
+        self.img_size = (params.img_shape_x, params.img_shape_y)  # lat then lon
         self.patch_size = (params.patch_size, params.patch_size)
         self.in_chans = params.N_in_channels
         self.out_chans = params.N_out_channels
