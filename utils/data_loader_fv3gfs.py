@@ -87,8 +87,10 @@ class FV3GFSDataset(Dataset):
         self.file = netCDF4.MFDataset(self.full_path)
         # minus one since don't have an output for the last step
         self.n_samples_total = len(self.file.variables["time"][:]) - 1
-        self.img_shape_x = len(self.file.variables["grid_xt"][:])
-        self.img_shape_y = len(self.file.variables["grid_yt"][:])
+        # provided ERA5 dataloader gets the "wrong" x/y convention (x is lat, y is lon)
+        # so we follow that convention here for consistency
+        self.img_shape_x = len(self.file.variables["grid_yt"][:])
+        self.img_shape_y = len(self.file.variables["grid_xt"][:])
         logging.info(f"Found {self.n_samples_total} samples.")
         logging.info(f"Image shape is {self.img_shape_x} x {self.img_shape_y}.")
         logging.info(f"Following variables are available: {list(self.file.variables)}.")
