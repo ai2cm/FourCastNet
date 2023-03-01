@@ -262,6 +262,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
         valid_loss[i] = weighted_rmse_torch_channels(pred, tar) * std
         acc[i] = weighted_acc_torch_channels(pred-clim, tar-clim)
         acc_unweighted[i] = unweighted_acc_torch_channels(pred-clim, tar-clim)
+        glboal_mean_pred = weighted_m
 
         if params.masked_acc:
           acc_land[i] = weighted_acc_masked_torch_channels(pred-clim, tar-clim, maskarray)
@@ -280,6 +281,11 @@ def autoregressive_inference(params, ic, valid_data_full, model):
           if params.interp > 0:
             logging.info('[COARSE] Predicted timestep {} of {}. {} RMS Error: {}, ACC: {}'.format(i, prediction_length, fld, valid_loss_coarse[i, idx],
                         acc_coarse[i, idx]))
+        if params.log_to_wandb:
+          rmse_metrics = {f'rmse_channel{c}_ic{ic}': valid_loss[i, c] for c in range(n_out_channels)}
+          acc_metrics = {f'acc_channel{c}_ic{ic}': acc[i, c] for c in range(n_out_channels)}
+          wandb.log({**rmse_metrics, **acc_metrics})
+              
 
     seq_real = seq_real.cpu().numpy()
     seq_pred = seq_pred.cpu().numpy()
