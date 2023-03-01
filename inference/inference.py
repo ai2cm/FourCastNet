@@ -84,10 +84,11 @@ def gaussian_perturb(x, level=0.01, device=0):
     noise = level * torch.randn(x.shape).to(device, dtype=torch.float)
     return (x + noise)
 
-def load_model(model, params, checkpoint_file):
+def load_model(model, params, checkpoint_file, device=None):
     model.zero_grad()
     checkpoint_fname = checkpoint_file
-    checkpoint = torch.load(checkpoint_fname)
+    kwargs = dict(map_location=torch.device('cpu')) if device == 'cpu' else {}
+    checkpoint = torch.load(checkpoint_fname, **kwargs)
     try:
         new_state_dict = OrderedDict()
         for key, val in checkpoint['model_state'].items():
@@ -134,7 +135,7 @@ def setup(params):
       raise Exception("not implemented")
 
     checkpoint_file  = params['best_checkpoint_path']
-    model = load_model(model, params, checkpoint_file)
+    model = load_model(model, params, checkpoint_file, device)
     model = model.to(device)
 
     # load the validation data
@@ -316,7 +317,9 @@ if __name__ == '__main__':
     params['use_daily_climatology'] = args.use_daily_climatology
     params['global_batch_size'] = params.batch_size
 
-    torch.cuda.set_device(0)
+    device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+    if device != 'cpu':
+      torch.cuda.set_device(device)
     torch.backends.cudnn.benchmark = True
     vis = args.vis
 
