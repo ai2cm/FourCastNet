@@ -66,14 +66,14 @@ def get_data_loader(params, files_pattern, distributed, train):
     dataset = GetDataset(params, files_pattern, train)
   elif data_type == 'FV3GFS':
     dataset = FV3GFSDataset(params, files_pattern, train)
-    if params.num_data_workers > 1:
+    if params.num_data_workers > 0:
       # netCDF4 __getitem__ fails with "RuntimeError: Resource temporarily unavailable"
-      # if num_data_workers > 1
+      # if num_data_workers > 0
       logging.warning(
-        "If data_type=='FV3GFS', must use num_data_workers=1. Got num_data_workers="
-        f"{params.num_data_workers}, but this is being set to 1."
+        "If data_type=='FV3GFS', must use num_data_workers=0. Got num_data_workers="
+        f"{params.num_data_workers}, but it is being set to 0."
       )
-      params['num_data_workers'] = 1
+      params['num_data_workers'] = 0
   else:
     raise NotImplementedError(f'{data_type} does not have an implemented data loader')
   
