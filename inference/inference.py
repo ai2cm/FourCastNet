@@ -493,7 +493,7 @@ if __name__ == '__main__':
               channel_video_data = np.minimum(channel_video_data, 255)
               channel_video_data = np.maximum(channel_video_data, 0)
               wandb_video = wandb.Video(channel_video_data, caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
-              wandb.log({f'prediction_video/channel{c}': wandb_video})
+              wandb.log({f'video/channel{c}': wandb_video})
 
       if params.masked_acc:
         try:
