@@ -490,7 +490,7 @@ class Trainer():
      if self.params.data_type == 'ERA5':
         return np.load(self.params.global_stds_path)[0, self.params.out_channels, 0, 0]
      elif self.params.data_type == 'FV3GFS':
-        return self.valid_dataset.out_stds
+        return self.valid_dataset.out_stds.squeeze()
      else:
         raise NotImplementedError(f'data_type {self.params.data_type} is unknown.')
 
