@@ -62,7 +62,13 @@ from collections import OrderedDict
 from torch.nn.parallel import DistributedDataParallel
 import logging
 from utils import logging_utils
-from utils.weighted_acc_rmse import weighted_rmse_torch_channels, weighted_acc_torch_channels, unweighted_acc_torch_channels, weighted_acc_masked_torch_channels
+from utils.weighted_acc_rmse import (
+    weighted_rmse_torch_channels,
+    weighted_acc_torch_channels,
+    unweighted_acc_torch_channels,
+    weighted_acc_masked_torch_channels,
+    weighted_global_mean_channels,
+)
 logging_utils.config_logger()
 from utils.YParams import YParams
 from utils.data_loader_multifiles import get_data_loader
@@ -171,6 +177,8 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     #initialize memory for image sequences and RMSE/ACC
     valid_loss = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
     acc = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
+    global_mean_pred = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
+    global_mean_target = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
 
     # compute metrics in a coarse resolution too if params.interp is nonzero
     valid_loss_coarse = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
@@ -207,6 +215,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
         m_coarse = downsample(m, scale=params.interp)
 
     std = torch.as_tensor(stds[:,0,0]).to(device, dtype=torch.float)
+    mean_ = torch.as_tensor(means[:,0,0]).to(device, dtype=torch.float)
 
     orography = params.orography
     orography_path = params.orography_path
@@ -262,7 +271,8 @@ def autoregressive_inference(params, ic, valid_data_full, model):
         valid_loss[i] = weighted_rmse_torch_channels(pred, tar) * std
         acc[i] = weighted_acc_torch_channels(pred-clim, tar-clim)
         acc_unweighted[i] = unweighted_acc_torch_channels(pred-clim, tar-clim)
-        glboal_mean_pred = weighted_m
+        global_mean_pred[i] = weighted_global_mean_channels(pred) * std + mean_
+        global_mean_target[i] = weighted_global_mean_channels(tar) * std + mean_
 
         if params.masked_acc:
           acc_land[i] = weighted_acc_masked_torch_channels(pred-clim, tar-clim, maskarray)
@@ -284,7 +294,9 @@ def autoregressive_inference(params, ic, valid_data_full, model):
         if params.log_to_wandb:
           rmse_metrics = {f'rmse_channel{c}_ic{ic}': valid_loss[i, c] for c in range(n_out_channels)}
           acc_metrics = {f'acc_channel{c}_ic{ic}': acc[i, c] for c in range(n_out_channels)}
-          wandb.log({**rmse_metrics, **acc_metrics})
+          mean_pred_metrics = {f'global_mean_prediction_channel{c}_ic{ic}': global_mean_pred[i, c] for c in range(n_out_channels)}
+          mean_target_metrics = {f'global_mean_target_channel{c}_ic{ic}': global_mean_target[i, c] for c in range(n_out_channels)}
+          wandb.log({**rmse_metrics, **acc_metrics, **mean_pred_metrics, **mean_target_metrics})
               
 
     seq_real = seq_real.cpu().numpy()
