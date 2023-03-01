@@ -292,10 +292,10 @@ def autoregressive_inference(params, ic, valid_data_full, model):
             logging.info('[COARSE] Predicted timestep {} of {}. {} RMS Error: {}, ACC: {}'.format(i, prediction_length, fld, valid_loss_coarse[i, idx],
                         acc_coarse[i, idx]))
         if params.log_to_wandb:
-          rmse_metrics = {f'rmse_channel{c}_ic{ic}': valid_loss[i, c] for c in range(n_out_channels)}
-          acc_metrics = {f'acc_channel{c}_ic{ic}': acc[i, c] for c in range(n_out_channels)}
-          mean_pred_metrics = {f'global_mean_prediction_channel{c}_ic{ic}': global_mean_pred[i, c] for c in range(n_out_channels)}
-          mean_target_metrics = {f'global_mean_target_channel{c}_ic{ic}': global_mean_target[i, c] for c in range(n_out_channels)}
+          rmse_metrics = {f'rmse/ic{ic}/channel{c}': valid_loss[i, c] for c in range(n_out_channels)}
+          acc_metrics = {f'acc/ic{ic}/channel{c}': acc[i, c] for c in range(n_out_channels)}
+          mean_pred_metrics = {f'global_mean_prediction/ic{ic}/channel{c}': global_mean_pred[i, c] for c in range(n_out_channels)}
+          mean_target_metrics = {f'global_mean_target/ic{ic}/channel{c}': global_mean_target[i, c] for c in range(n_out_channels)}
           wandb.log({**rmse_metrics, **acc_metrics, **mean_pred_metrics, **mean_target_metrics})
               
 
@@ -493,7 +493,7 @@ if __name__ == '__main__':
               channel_video_data = np.minimum(channel_video_data, 255)
               channel_video_data = np.maximum(channel_video_data, 0)
               wandb_video = wandb.Video(channel_video_data, caption=f'Autoregressive (left) prediction and (right) target for channel {c}')
-              wandb.log({f'prediction_video_channel{c}': wandb_video})
+              wandb.log({f'prediction_video/channel{c}': wandb_video})
 
       if params.masked_acc:
         try:
