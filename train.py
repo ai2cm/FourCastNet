@@ -395,9 +395,11 @@ class Trainer():
                   image = torch.cat((gen_step_one[0,j], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,j]), axis = 1)
               else:
                   image = torch.cat((gen[0,j], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,j]), axis = 1)
-              save_image(image, image_path)
-              wandb_image = wandb.Image(image, caption=f'Channel {j} ({name}) one step prediction for sample {i}; (left) generated and (right) target.')
-              image_logs[f'image-full-field/sample{i}/channel{j}-{name}'] = wandb_image
+              if self.params.log_to_wandb:
+                  wandb_image = wandb.Image(image, caption=f'Channel {j} ({name}) one step prediction for sample {i}; (left) generated and (right) target.')
+                  image_logs[f'image-full-field/sample{i}/channel{j}-{name}'] = wandb_image
+              else:
+                  save_image(image, image_path)
 
            
     if dist.is_initialized():
