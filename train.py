@@ -389,17 +389,25 @@ class Trainer():
         if not self.precip and i % 10 == 0:
             for j in range(gen.shape[1]):
               name = self.valid_dataset.out_names[j]
-              image_path = os.path.join(params['experiment_dir'], f'sample{i}', f'channel{j}', f'epoch{self.epoch}.png')
               os.makedirs(os.path.dirname(image_path), exist_ok=True)
-              if self.params.two_step_training:
-                  image = torch.cat((gen_step_one[0,j], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,j]), axis = 1)
+              gap = torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float)
+              gen_for_image = gen_step_one[0,j] if self.params.two_step_training else gen[0,j]
+              if 'residual_field' in self.params.target:
+                  image_full_field = torch.cat((inp + gen_for_image, gap, inp + tar[0,j]), axis=1)
+                  image_residual = torch.cat((gen_for_image, gap, tar[0,j]), axis=1)
               else:
-                  image = torch.cat((gen[0,j], torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float), tar[0,j]), axis = 1)
+                  image_full_field = torch.cat((gen_for_image, gap, tar[0,j]), axis=1)
+                  image_residual = torch.cat((gen_for_image - inp, gap, tar[0,j - inp]), axis=1)
               if self.params.log_to_wandb:
-                  wandb_image = wandb.Image(image, caption=f'Channel {j} ({name}) one step prediction for sample {i}; (left) generated and (right) target.')
+                  caption = f'Channel {j} ({name}) one step full field for sample {i}; (left) generated and (right) target.'
+                  wandb_image = wandb.Image(image_full_field, caption=caption)
                   image_logs[f'image-full-field/sample{i}/channel{j}-{name}'] = wandb_image
+                  caption = f'Channel {j} ({name}) one step residual for sample {i}; (left) generated and (right) target.'
+                  wandb_image = wandb.Image(image_residual, caption=caption)
+                  image_logs[f'image-residual/sample{i}/channel{j}-{name}'] = wandb_image
               else:
-                  save_image(image, image_path)
+                  image_path = os.path.join(params['experiment_dir'], f'sample{i}', f'channel{j}', f'epoch{self.epoch}.png')
+                  save_image(image_full_field, image_path)
 
            
     if dist.is_initialized():
