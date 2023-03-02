@@ -173,7 +173,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     out_channels = np.array(params.out_channels)
     n_in_channels = len(in_channels)
     n_out_channels = len(out_channels)
-    out_names = CHANNEL_NAMES[out_channels]
+    out_names = [CHANNEL_NAMES[c] for c in out_channels]
     means = params.means
     stds = params.stds
 

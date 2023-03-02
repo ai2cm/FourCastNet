@@ -88,8 +88,8 @@ class GetDataset(Dataset):
     self.out_channels = np.array(params.out_channels)
     self.n_in_channels = len(self.in_channels)
     self.n_out_channels = len(self.out_channels)
-    self.in_names = CHANNEL_NAMES[self.in_channels]
-    self.out_names = CHANNEL_NAMES[self.out_channels]
+    self.in_names = [CHANNEL_NAMES[c] for c in self.in_channels]
+    self.out_names = [CHANNEL_NAMES[c] for c in self.out_channels]
     self.crop_size_x = params.crop_size_x
     self.crop_size_y = params.crop_size_y
     self.roll = params.roll
