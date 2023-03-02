@@ -66,7 +66,7 @@ from utils.data_loader_multifiles import get_data_loader
 from networks.afnonet import AFNONet, PrecipNet
 from utils.img_utils import vis_precip
 import wandb
-from utils.weighted_acc_rmse import weighted_acc, weighted_rmse, weighted_rmse_torch, unlog_tp_torch
+from utils.weighted_acc_rmse import weighted_acc, weighted_rmse, weighted_rmse_torch, unlog_tp_torch, weighted_global_mean_gradient_magnitude_channels
 from apex import optimizers
 from utils.darcy_loss import LpLoss
 import matplotlib.pyplot as plt
@@ -329,6 +329,7 @@ class Trainer():
     valid_steps = valid_buff[2].view(-1)
     valid_weighted_rmse = torch.zeros((self.params.N_out_channels), dtype=torch.float32, device=self.device)
     valid_weighted_acc = torch.zeros((self.params.N_out_channels), dtype=torch.float32, device=self.device)
+    valid_gradient_magnitude_diff = torch.zeros((self.params.N_out_channels), dtype=torch.float32, device=self.device)
 
     valid_start = time.time()
 
@@ -376,15 +377,22 @@ class Trainer():
         #direct prediction weighted rmse
         if self.params.two_step_training:
             if 'residual_field' in self.params.target:
-                valid_weighted_rmse += weighted_rmse_torch((gen_step_one + inp), (tar[:,0:self.params.N_out_channels] + inp))
+                gen_for_rmse = gen_step_one + inp
+                tar_for_rmse = tar[:,0:self.params.N_out_channels] + inp
             else:
-                valid_weighted_rmse += weighted_rmse_torch(gen_step_one, tar[:,0:self.params.N_out_channels])
+                gen_for_rmse = gen_step_one
+                tar_for_rmse = tar[:,0:self.params.N_out_channels]
         else:
             if 'residual_field' in self.params.target:
-                valid_weighted_rmse += weighted_rmse_torch((gen + inp), (tar + inp))
+                gen_for_rmse = gen + inp
+                tar_for_rmse = tar + inp
             else:
-                valid_weighted_rmse += weighted_rmse_torch(gen, tar)
-
+                gen_for_rmse = gen
+                tar_for_rmse = tar
+        valid_weighted_rmse += weighted_rmse_torch(gen_for_rmse, tar_for_rmse)
+        gen_gradient_magnitude = weighted_global_mean_gradient_magnitude_channels(gen_for_rmse)
+        tar_gradient_magnitude = weighted_global_mean_gradient_magnitude_channels(tar_for_rmse)
+        valid_gradient_magnitude_diff += 100 * (gen_gradient_magnitude - tar_gradient_magnitude) / tar_gradient_magnitude
 
         if not self.precip and i % 10 == 0:
             for j in range(gen.shape[1]):
@@ -417,29 +425,38 @@ class Trainer():
     # divide by number of steps
     valid_buff[0:2] = valid_buff[0:2] / valid_buff[2]
     valid_weighted_rmse = valid_weighted_rmse / valid_buff[2]
+    valid_gradient_magnitude_diff = valid_gradient_magnitude_diff / valid_buff[2]
     if not self.precip:
       valid_weighted_rmse *= mult
 
     # download buffers
     valid_buff_cpu = valid_buff.detach().cpu().numpy()
     valid_weighted_rmse_cpu = valid_weighted_rmse.detach().cpu().numpy()
+    valid_gradient_magnitude_diff_cpu = valid_gradient_magnitude_diff.detach().cpu().numpy()
 
     valid_time = time.time() - valid_start
     valid_weighted_rmse = mult*torch.mean(valid_weighted_rmse, axis = 0)
     if self.precip:
       logs = {'valid_l1': valid_buff_cpu[1], 'valid_loss': valid_buff_cpu[0], 'valid_rmse_tp': valid_weighted_rmse_cpu[0]}
     else:
-      try:
-        logs = {'valid_l1': valid_buff_cpu[1], 'valid_loss': valid_buff_cpu[0], 'valid_rmse_u10': valid_weighted_rmse_cpu[0], 'valid_rmse_v10': valid_weighted_rmse_cpu[1]}
-      except:
-        logs = {'valid_l1': valid_buff_cpu[1], 'valid_loss': valid_buff_cpu[0], 'valid_rmse_u10': valid_weighted_rmse_cpu[0]}#, 'valid_rmse_v10': valid_weighted_rmse[1]}
+      logs = {
+         'valid_l1': valid_buff_cpu[1],
+         'valid_loss': valid_buff_cpu[0],
+         'valid_rmse_u10': valid_weighted_rmse_cpu[0],
+         'valid_rmse_v10': valid_weighted_rmse_cpu[1],
+         
+      }
+      grad_mag_logs = {
+         f'valid_gradient_magnitude_percent_diff/channel-{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
+         for c, name in enumerate(self.valid_dataset.out_names)
+      }
     
     if self.params.log_to_wandb:
       if self.precip:
         fig = vis_precip(fields)
         logs['vis'] = wandb.Image(fig)
         plt.close(fig)
-      wandb.log({**logs, **image_logs}, step=self.epoch)
+      wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
 
     return valid_time, logs
 
