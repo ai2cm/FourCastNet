@@ -66,7 +66,7 @@ from utils.data_loader_multifiles import get_data_loader
 from networks.afnonet import AFNONet, PrecipNet
 from utils.img_utils import vis_precip
 import wandb
-from utils.weighted_acc_rmse import weighted_acc, weighted_rmse, weighted_rmse_torch, unlog_tp_torch, weighted_global_mean_gradient_magnitude_channels
+from utils.weighted_acc_rmse import weighted_acc, weighted_rmse, weighted_rmse_torch, unlog_tp_torch, weighted_global_mean_gradient_magnitude
 from apex import optimizers
 from utils.darcy_loss import LpLoss
 import matplotlib.pyplot as plt
@@ -390,22 +390,21 @@ class Trainer():
                 gen_for_rmse = gen
                 tar_for_rmse = tar
         valid_weighted_rmse += weighted_rmse_torch(gen_for_rmse, tar_for_rmse)
-        gen_gradient_magnitude = weighted_global_mean_gradient_magnitude_channels(gen_for_rmse)
-        tar_gradient_magnitude = weighted_global_mean_gradient_magnitude_channels(tar_for_rmse)
+        gen_gradient_magnitude = weighted_global_mean_gradient_magnitude(gen_for_rmse)
+        tar_gradient_magnitude = weighted_global_mean_gradient_magnitude(tar_for_rmse)
         valid_gradient_magnitude_diff += 100 * (gen_gradient_magnitude - tar_gradient_magnitude) / tar_gradient_magnitude
 
         if not self.precip and i % 10 == 0:
             for j in range(gen.shape[1]):
               name = self.valid_dataset.out_names[j]
-              os.makedirs(os.path.dirname(image_path), exist_ok=True)
               gap = torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float)
               gen_for_image = gen_step_one[0,j] if self.params.two_step_training else gen[0,j]
               if 'residual_field' in self.params.target:
-                  image_full_field = torch.cat((inp + gen_for_image, gap, inp + tar[0,j]), axis=1)
+                  image_full_field = torch.cat((inp[0,j] + gen_for_image, gap, inp[0,j] + tar[0,j]), axis=1)
                   image_residual = torch.cat((gen_for_image, gap, tar[0,j]), axis=1)
               else:
                   image_full_field = torch.cat((gen_for_image, gap, tar[0,j]), axis=1)
-                  image_residual = torch.cat((gen_for_image - inp, gap, tar[0,j - inp]), axis=1)
+                  image_residual = torch.cat((gen_for_image - inp[0,j], gap, tar[0,j] - inp[0,j]), axis=1)
               if self.params.log_to_wandb:
                   caption = f'Channel {j} ({name}) one step full field for sample {i}; (left) generated and (right) target.'
                   wandb_image = wandb.Image(image_full_field, caption=caption)
@@ -415,6 +414,7 @@ class Trainer():
                   image_logs[f'image-residual/sample{i}/channel{j}-{name}'] = wandb_image
               else:
                   image_path = os.path.join(params['experiment_dir'], f'sample{i}', f'channel{j}', f'epoch{self.epoch}.png')
+                  os.makedirs(os.path.dirname(image_path), exist_ok=True)
                   save_image(image_full_field, image_path)
 
            
@@ -447,7 +447,7 @@ class Trainer():
          
       }
       grad_mag_logs = {
-         f'valid_gradient_magnitude_percent_diff/channel-{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
+         f'valid_gradient_magnitude_percent_diff/channel{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
          for c, name in enumerate(self.valid_dataset.out_names)
       }
     
