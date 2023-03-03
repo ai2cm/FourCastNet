@@ -84,41 +84,44 @@ class FV3GFSDataset(Dataset):
 
     def _get_files_stats(self):
         logging.info(f"Opening data at {self.full_path}")
-        self.file = netCDF4.MFDataset(self.full_path)
+        self.ds = netCDF4.MFDataset(self.full_path)
+        self.ds.set_auto_mask(False)
         # minus one since don't have an output for the last step
-        self.n_samples_total = len(self.file.variables["time"][:]) - 1
+        self.n_samples_total = len(self.ds.variables["time"][:]) - 1
         # provided ERA5 dataloader gets the "wrong" x/y convention (x is lat, y is lon)
         # so we follow that convention here for consistency
-        self.img_shape_x = len(self.file.variables["grid_yt"][:])
-        self.img_shape_y = len(self.file.variables["grid_xt"][:])
+        self.img_shape_x = len(self.ds.variables["grid_yt"][:])
+        self.img_shape_y = len(self.ds.variables["grid_xt"][:])
         logging.info(f"Found {self.n_samples_total} samples.")
         logging.info(f"Image shape is {self.img_shape_x} x {self.img_shape_y}.")
-        logging.info(f"Following variables are available: {list(self.file.variables)}.")
+        logging.info(f"Following variables are available: {list(self.ds.variables)}.")
 
     def _load_stats_data(self):
         logging.info(f"Opening mean stats data at {self.params.global_means_path}")
-        means_file = netCDF4.Dataset(self.params.global_means_path)
-        self.in_means = np.array([means_file.variables[c][:] for c in self.in_names])
-        self.out_means = np.array([means_file.variables[c][:] for c in self.out_names])
+        means_ds = netCDF4.Dataset(self.params.global_means_path)
+        means_ds.set_auto_mask(False)
+        self.in_means = np.array([means_ds.variables[c][:] for c in self.in_names])
+        self.out_means = np.array([means_ds.variables[c][:] for c in self.out_names])
         self.in_means = self.in_means.reshape((1, self.n_in_channels, 1, 1))
         self.out_means = self.out_means.reshape((1, self.n_out_channels, 1, 1))
-        means_file.close()
+        means_ds.close()
 
         logging.info(f"Opening stddev stats data at {self.params.global_stds_path}")
-        stddev_file = netCDF4.Dataset(self.params.global_stds_path)
-        self.in_stds = np.array([stddev_file.variables[c][:] for c in self.in_names])
-        self.out_stds = np.array([stddev_file.variables[c][:] for c in self.out_names])
+        stddev_ds = netCDF4.Dataset(self.params.global_stds_path)
+        stddev_ds.set_auto_mask(False)
+        self.in_stds = np.array([stddev_ds.variables[c][:] for c in self.in_names])
+        self.out_stds = np.array([stddev_ds.variables[c][:] for c in self.out_names])
         self.in_stds = self.in_stds.reshape((1, self.n_in_channels, 1, 1))
         self.out_stds = self.out_stds.reshape((1, self.n_out_channels, 1, 1))
-        stddev_file.close()
+        stddev_ds.close()
 
     def __len__(self):
         return self.n_samples_total
 
     def __getitem__(self, idx):
-        in_arrays = [self.file.variables[c][idx : idx + 1, :, :] for c in self.in_names]
+        in_arrays = [self.ds.variables[c][idx : idx + 1, :, :] for c in self.in_names]
         out_arrays = [
-            self.file.variables[c][idx + 1 : idx + 2, :, :] for c in self.out_names
+            self.ds.variables[c][idx + 1 : idx + 2, :, :] for c in self.out_names
         ]
         in_array = np.concatenate(in_arrays, axis=0)
         out_array = np.concatenate(out_arrays, axis=0)
