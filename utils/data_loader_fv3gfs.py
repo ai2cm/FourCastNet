@@ -113,7 +113,7 @@ class FV3GFSDataset(Dataset):
         self.out_time_means = np.expand_dims(out_, 0)
 
     @property
-    def data_sample(self):
+    def data_array(self):
         fv3gfs_names = [FV3GFS_NAMES[v] for v in CHANNEL_NAMES]
         arrays = [np.expand_dims(self.ds.variables[v][:], 1) for v in fv3gfs_names]
         return np.concatenate(arrays, axis=1)

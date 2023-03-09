@@ -150,7 +150,7 @@ def setup(params):
     # load the validation data
     if params.log_to_screen:
         logging.info('Loading inference data')
-    valid_data_full = valid_dataset.data_sample
+    valid_data_full = valid_dataset.data_array
 
     return valid_data_full, model
 

@@ -164,7 +164,7 @@ class GetDataset(Dataset):
 
 
   @property
-  def data_sample(self):
+  def data_array(self):
     # returns array of first file of data
     logging.info(f'Loading data from {self.files_paths[0]}')
     _file = h5py.File(self.files_paths[0], 'r')
