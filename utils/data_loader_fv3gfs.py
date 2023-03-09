@@ -168,6 +168,3 @@ def load_arrays_from_netcdf(path, in_names, out_names):
     out_array = np.array([ds.variables[c][:] for c in out_names])
     ds.close()
     return in_array, out_array
-    self.in_means = self.in_means.reshape((1, self.n_in_channels, 1, 1))
-    self.out_means = self.out_means.reshape((1, self.n_out_channels, 1, 1))
-    means_ds.close()
