@@ -77,6 +77,9 @@ import json
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ruamelDict
 
+
+from inference import inference
+
 class Trainer():
   def count_parameters(self):
     return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -209,9 +212,7 @@ class Trainer():
 #        self.valid_sampler.set_epoch(epoch)
 
       start = time.time()
-      print("start")
       tr_time, data_time, train_logs = self.train_one_epoch()
-      print("stop")
       valid_time, valid_logs = self.validate_one_epoch()
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
@@ -240,6 +241,10 @@ class Trainer():
             self.save_checkpoint(self.params.best_checkpoint_path)
             best_valid_loss = valid_logs['valid_loss']
 
+          
+          # TODO(gideond)
+          self.run_inference()
+
       if self.params.log_to_screen:
         logging.info('Time taken for epoch {} is {} sec'.format(epoch + 1, time.time()-start))
         #logging.info('train data time={}, train step time={}, valid step time={}'.format(data_time, tr_time, valid_time))
@@ -248,10 +253,74 @@ class Trainer():
 #          logging.info('Final Valid RMSE: Z500- {}. T850- {}, 2m_T- {}'.format(valid_weighted_rmse[0], valid_weighted_rmse[1], valid_weighted_rmse[2]))
 
 
-      # TODO(gideond)
-      # load checkpoint, perform inference, save to disk (e.g. wandb)
+  def run_inference(self):
+    logging.info('Running inference')
+    # load the validation data
+    import glob
+    files_paths = glob.glob(params.inf_data_path + "/*.h5")
+    files_paths.sort()
+    # which year
+    yr = 0
+    if params.log_to_screen:
+        logging.info('Loading inference data')
+        logging.info('Inference data from {}'.format(files_paths[yr]))
 
+    valid_data_full = h5py.File(files_paths[yr], 'r')['fields']
 
+    #initialize lists for image sequences and RMSE/ACC
+    valid_loss = []
+    valid_loss_coarse = []
+    acc_unweighted = []
+    acc = []
+    acc_coarse = []
+    acc_coarse_unweighted = []
+    seq_pred = []
+    seq_real = []
+    acc_land = []
+    acc_sea = []
+
+    # TODO(gideond) remove these fields when you exit function?
+    out_channels = np.array(params.out_channels)
+    params.means = np.load(params.global_means_path)[0, out_channels] # needed to standardize wind data
+    params.stds = np.load(params.global_stds_path)[0, out_channels]
+
+    #run autoregressive inference for multiple initial conditions
+    # TODO(gideond) hard coded
+    ics = [i * 36 for i in range(36)]
+    n_ics = len(ics)
+    for i, ic in enumerate(ics):
+      logging.info("Initial condition {} of {}".format(i+1, n_ics))
+      sr, sp, vl, a, au, vc, ac, acu, accland, accsea = inference.autoregressive_inference(params, ic, valid_data_full, self.model)
+
+      if i ==0 or len(valid_loss) == 0:
+        seq_real = sr
+        seq_pred = sp
+        valid_loss = vl
+        valid_loss_coarse = vc
+        acc = a
+        acc_coarse = ac
+        acc_coarse_unweighted = acu
+        acc_unweighted = au
+        acc_land = accland
+        acc_sea = accsea
+      else:
+  #        seq_real = np.concatenate((seq_real, sr), 0)
+  #        seq_pred = np.concatenate((seq_pred, sp), 0)
+        valid_loss = np.concatenate((valid_loss, vl), 0)
+        valid_loss_coarse = np.concatenate((valid_loss_coarse, vc), 0)
+        acc = np.concatenate((acc, a), 0)
+        acc_coarse = np.concatenate((acc_coarse, ac), 0)
+        acc_coarse_unweighted = np.concatenate((acc_coarse_unweighted, acu), 0)
+        acc_unweighted = np.concatenate((acc_unweighted, au), 0)
+        acc_land = np.concatenate((acc_land, accland), 0)
+        acc_sea = np.concatenate((acc_sea, accsea), 0)
+
+    prediction_length = seq_real[0].shape[0]
+    n_out_channels = seq_real[0].shape[1]
+    img_shape_x = seq_real[0].shape[2]
+    img_shape_y = seq_real[0].shape[3]
+
+    return
 
 
   def train_one_epoch(self):
@@ -261,7 +330,9 @@ class Trainer():
     self.model.train()
     
     for i, data in enumerate(self.train_data_loader, 0):
-      logging.info("i = {}".format(i))
+      if i % 100 == 0:
+        logging.info("i = {}".format(i))
+
       self.iters += 1
       # adjust_LR(optimizer, params, iters)
       data_start = time.time()
