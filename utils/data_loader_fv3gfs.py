@@ -115,8 +115,8 @@ class FV3GFSDataset(Dataset):
     @property
     def data_sample(self):
         fv3gfs_names = [FV3GFS_NAMES[v] for v in CHANNEL_NAMES]
-        arrays = [np.expand_dims(self.ds.variables[v][:], 0) for v in fv3gfs_names]
-        return np.concatenate(arrays, axis=0)
+        arrays = [np.expand_dims(self.ds.variables[v][:], 1) for v in fv3gfs_names]
+        return np.concatenate(arrays, axis=1)
 
     def __len__(self):
         return self.n_samples_total
