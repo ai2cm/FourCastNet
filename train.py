@@ -196,14 +196,22 @@ class Trainer():
     if self.params.log_to_screen:
       logging.info("Starting Training Loop...")
 
+
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
+
+
+      logging.info("Epoch {}/{}".format(epoch, self.params.max_epochs - 1))
+
+
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
 
       start = time.time()
+      print("start")
       tr_time, data_time, train_logs = self.train_one_epoch()
+      print("stop")
       valid_time, valid_logs = self.validate_one_epoch()
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
@@ -240,6 +248,11 @@ class Trainer():
 #          logging.info('Final Valid RMSE: Z500- {}. T850- {}, 2m_T- {}'.format(valid_weighted_rmse[0], valid_weighted_rmse[1], valid_weighted_rmse[2]))
 
 
+      # TODO(gideond)
+      # load checkpoint, perform inference, save to disk (e.g. wandb)
+
+
+
 
   def train_one_epoch(self):
     self.epoch += 1
@@ -248,6 +261,7 @@ class Trainer():
     self.model.train()
     
     for i, data in enumerate(self.train_data_loader, 0):
+      logging.info("i = {}".format(i))
       self.iters += 1
       # adjust_LR(optimizer, params, iters)
       data_start = time.time()
