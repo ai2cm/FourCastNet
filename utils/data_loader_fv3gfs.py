@@ -110,7 +110,7 @@ class FV3GFSDataset(Dataset):
         # just used for multistep validation
         logging.info(f"Opening time mean stats data at {self.params.time_means_path}")
         in_, out_ = load_arrays_from_netcdf(self.params.time_means_path, self.in_names, self.out_names)
-        self.out_time_means = np.expand_dims(out_, 0)
+        self.out_time_means = np.flip(np.expand_dims(out_, 0), axis=-2)
 
     @property
     def data_array(self):
@@ -126,8 +126,8 @@ class FV3GFSDataset(Dataset):
         out_arrays = [
             self.ds.variables[c][idx + 1 : idx + 2, :, :] for c in self.out_names
         ]
-        in_array = np.concatenate(in_arrays, axis=0)
-        out_array = np.concatenate(out_arrays, axis=0)
+        in_array = np.flip(np.concatenate(in_arrays, axis=0), axis=-2)
+        out_array = np.flip(np.concatenate(out_arrays, axis=0), axis=-2)
         in_tensor = reshape_fields(
             in_array,
             "inp",
