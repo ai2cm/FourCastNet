@@ -177,6 +177,18 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     means = params.means
     stds = params.stds
 
+    # Consider the default case to be when this function is called outside of
+    # main. In this case, we assume that the caller is train.py and therefore we
+    # do not want to log the metrics for each time-step unroll. Instead, we want
+    # to log aggegrated metrics for a *single* initial condition (ic) aggregated
+    # over time.
+    if 'is_log_time_series_metrics_to_wandb' not in params:
+      # the YParams object doesn't support params.get(k, 'default') 
+      params['is_log_time_series_metrics_to_wandb'] = False
+    
+    if 'is_log_aggregated_metrics_to_wandb' not in params:
+        params['is_log_aggregated_metrics_to_wandb'] = True
+
     #initialize memory for image sequences and RMSE/ACC
     valid_loss = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
     acc = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
@@ -311,7 +323,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
             f'global_mean_gradient_magnitude_target/ic{ic}/channel{c}-{name}':
             gradient_magnitude_target[i, c] for c, name in enumerate(out_names)
           }
-          if is_log_time_series_metrics_to_wandb:
+          if params.is_log_time_series_metrics_to_wandb:
             wandb.log(
               {
                 **rmse_metrics,
@@ -323,8 +335,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
               }
             )
               
-
-    if is_log_aggregated_metrics_to_wandb:
+    if params.is_log_aggregated_metrics_to_wandb:
       # each metric is [time x channel]
       all_metrics = [valid_loss, acc, global_mean_pred, global_mean_target, gradient_magnitude_pred, gradient_magnitude_target]
       time_avg_metrics = [m.mean(axis=0) for m in all_metrics]
@@ -361,7 +372,6 @@ if __name__ == '__main__':
     parser.add_argument("--override_dir", default=None, type = str, help = 'Path to store inference outputs; must also set --weights arg')
     parser.add_argument("--interp", default=0, type=float)
     parser.add_argument("--weights", default=None, type=str, help = 'Path to model weights, for use with override_dir option')
-    parser.add_argument("--generate_summary_metrics", default=True, type=bool, help = 'Whether to generate summary inference metrics. If True, only use one initial condition.')
     
     args = parser.parse_args()
     params = YParams(os.path.abspath(args.yaml_config), args.config)
@@ -369,6 +379,12 @@ if __name__ == '__main__':
     params['interp'] = args.interp
     params['use_daily_climatology'] = args.use_daily_climatology
     params['global_batch_size'] = params.batch_size
+
+    # When running main, we want to log unaggegrated time series metrics to wandb.
+    # See `autoregressive_inference` config setup for more info.
+    # TODO(gideond) might be useful to make this an actual cmdline arg.
+    params['is_log_time_series_metrics_to_wandb'] = True
+    params['is_log_aggregated_metrics_to_wandb'] = False
 
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
     if device != 'cpu':
@@ -433,10 +449,8 @@ if __name__ == '__main__':
                 hours_since_jan_01_epoch = 24*day_of_year + hour_of_day
                 ics.append(int(hours_since_jan_01_epoch/6))
 
-    # if args.generate_summary_metrics:
-    # TODO(gideond) use commandline arg
-    if True:
-      logging.info("XXXXXXX Generating summary metrics for a single initial condition.")
+    if params.is_log_aggregated_metrics_to_wandb:
+      logging.info("Logging aggregated metrics to wandb => using only first initial condition.")
       ics = [ics[0]]
       n_ics = 1
     else:

@@ -77,6 +77,8 @@ import json
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ruamelDict
 
+from inference import inference
+
 class Trainer():
   def count_parameters(self):
     return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -457,6 +459,9 @@ class Trainer():
         logs['vis'] = wandb.Image(fig)
         plt.close(fig)
       wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
+
+    valid_ic = 0
+    sr, sp, vl, a, au, vc, ac, acu, accland, accsea = inference.autoregressive_inference(params, valid_ic, valid_data_full, model)
 
     return valid_time, logs
 
