@@ -461,7 +461,9 @@ class Trainer():
       wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
 
     valid_ic = 0
-    sr, sp, vl, a, au, vc, ac, acu, accland, accsea = inference.autoregressive_inference(params, valid_ic, valid_data_full, model)
+    # TODO(gideond) remove used variables?
+    sr, sp, vl, a, au, vc, ac, acu, accland, accsea = inference.autoregressive_inference(
+       params, valid_ic, self.valid_dataset, self.model)
 
     return valid_time, logs
 
