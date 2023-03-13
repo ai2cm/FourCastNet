@@ -311,17 +311,27 @@ def autoregressive_inference(params, ic, valid_data_full, model):
             f'global_mean_gradient_magnitude_target/ic{ic}/channel{c}-{name}':
             gradient_magnitude_target[i, c] for c, name in enumerate(out_names)
           }
-          wandb.log(
-            {
-              **rmse_metrics,
-              **acc_metrics,
-              **mean_pred_metrics,
-              **mean_target_metrics,
-              **grad_mag_pred_metrics,
-              **grad_mag_target_metrics
-            }
-          )
+          if is_log_time_series_metrics_to_wandb:
+            wandb.log(
+              {
+                **rmse_metrics,
+                **acc_metrics,
+                **mean_pred_metrics,
+                **mean_target_metrics,
+                **grad_mag_pred_metrics,
+                **grad_mag_target_metrics
+              }
+            )
               
+
+    if is_log_aggregated_metrics_to_wandb:
+      # each metric is [time x channel]
+      all_metrics = [valid_loss, acc, global_mean_pred, global_mean_target, gradient_magnitude_pred, gradient_magnitude_target]
+      time_avg_metrics = [m.mean(axis=0) for m in all_metrics]
+      metric_names = ['rmse', 'acc', 'global_mean_prediction', 'global_mean_target', 'global_mean_gradient_magnitude_prediction', 'global_mean_gradient_magnitude_target']
+      for m, n in zip(time_avg_metrics, metric_names):
+        for c, name in enumerate(out_names):
+          wandb.log({f'{n}/ic{ic}/channel{c}-{name}': m[c]})
 
     seq_real = seq_real.cpu().numpy()
     seq_pred = seq_pred.cpu().numpy()
@@ -351,6 +361,7 @@ if __name__ == '__main__':
     parser.add_argument("--override_dir", default=None, type = str, help = 'Path to store inference outputs; must also set --weights arg')
     parser.add_argument("--interp", default=0, type=float)
     parser.add_argument("--weights", default=None, type=str, help = 'Path to model weights, for use with override_dir option')
+    parser.add_argument("--generate_summary_metrics", default=True, type=bool, help = 'Whether to generate summary inference metrics. If True, only use one initial condition.')
     
     args = parser.parse_args()
     params = YParams(os.path.abspath(args.yaml_config), args.config)
@@ -421,7 +432,15 @@ if __name__ == '__main__':
                 hour_of_day = date_obj.timetuple().tm_hour
                 hours_since_jan_01_epoch = 24*day_of_year + hour_of_day
                 ics.append(int(hours_since_jan_01_epoch/6))
-        n_ics = len(ics)
+
+    # if args.generate_summary_metrics:
+    # TODO(gideond) use commandline arg
+    if True:
+      logging.info("XXXXXXX Generating summary metrics for a single initial condition.")
+      ics = [ics[0]]
+      n_ics = 1
+    else:
+      n_ics = len(ics)
 
     logging.info("Inference for {} initial conditions".format(n_ics))
     try:

@@ -450,7 +450,7 @@ class Trainer():
          f'valid_gradient_magnitude_percent_diff/channel{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
          for c, name in enumerate(self.valid_dataset.out_names)
       }
-    
+
     if self.params.log_to_wandb:
       if self.precip:
         fig = vis_precip(fields)
