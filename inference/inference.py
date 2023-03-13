@@ -187,7 +187,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
       params['is_log_time_series_metrics_to_wandb'] = False
     
     if 'is_log_aggregated_metrics_to_wandb' not in params:
-        params['is_log_aggregated_metrics_to_wandb'] = True
+        params['is_log_aggregated_metrics_to_wandb'] = True  # I ran the inference code for True and False (gideond).
 
     #initialize memory for image sequences and RMSE/ACC
     valid_loss = torch.zeros((prediction_length, n_out_channels)).to(device, dtype=torch.float)
