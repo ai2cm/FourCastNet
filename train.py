@@ -200,7 +200,7 @@ class Trainer():
 
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
-      logging.info("Epoch: %d" % epoch + 1)
+      logging.info(f"Epoch: {epoch+1}")
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
@@ -222,11 +222,6 @@ class Trainer():
           logging.info("Terminating training after reaching params.max_epochs while LR scheduler is set to CosineAnnealingLR")
           exit()
 
-      if self.params.log_to_wandb:
-        for pg in self.optimizer.param_groups:
-          lr = pg['lr']
-        wandb.log({'lr': lr})
-
       if self.world_rank == 0:
         if self.params.save_checkpoint:
           #checkpoint at the end of every epoch
@@ -245,7 +240,9 @@ class Trainer():
 
       if self.params.log_to_wandb:
         logging.info("Logging to wandb")
-        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'epoch': epoch + 1}})
+        for pg in self.optimizer.param_groups:
+          lr = pg['lr']
+        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'lr': lr}}, step=self.epoch)
 
 
   def train_one_epoch(self):
@@ -316,9 +313,6 @@ class Trainer():
       for key in sorted(logs.keys()):
         dist.all_reduce(logs[key].detach())
         logs[key] = float(logs[key]/dist.get_world_size())
-
-    if self.params.log_to_wandb:
-      wandb.log(logs, step=self.epoch)
 
     return tr_time, data_time, logs
 
