@@ -474,7 +474,10 @@ class Trainer():
       inference_params.time_means = self.valid_dataset.out_time_means[0]
       inference_params.use_daily_climatology = False  # TODO(gideond) default value?
       inference_params.interp = 0  # TODO(gideond) default value?
-      inference.autoregressive_inference(inference_params, 0, self.valid_dataset.data_array, self.model)
+      inference_params.epoch = self.epoch
+      inference_params.iters = self.iters
+      inference.autoregressive_inference(
+         inference_params, 0, self.valid_dataset.data_array, self.model)
 
   def validate_final(self):
     self.model.eval()

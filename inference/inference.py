@@ -321,9 +321,8 @@ def autoregressive_inference(params, ic, valid_data_full, model):
               **grad_mag_target_metrics
             }
           )
-              
 
-    if params.log_to_wandb:
+    if params.log_to_wandb and hasattr(params, 'epoch'):
       # inspect snapshot times at 5-days and 10-days.
       snapshot_timesteps = [(24 // 6 * k, f"{k}-days") for k in [5, 10]]
 
@@ -337,7 +336,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
             for k in range(len(out_names)):
               name = f'{metric_names[i]}_{time_name}/ic{ic}/channel{k}-{out_names[k]}'
               try:
-                wandb.log({name: all_metrics[i, j, k]})
+                wandb.log({name: all_metrics[i, j, k], 'epoch': params.epoch}, step=params.iters)
               except IndexError:
                 logging.error(f"Failed to log {name}")
 
