@@ -208,12 +208,11 @@ class Trainer():
       start = time.time()
       tr_time, data_time, train_logs = self.train_one_epoch()
       valid_time, valid_logs = self.validate_one_epoch()
-      self.inference_one_epoch()
+      inference_logs = self.inference_one_epoch()
+      del tr_time, data_time, valid_time
 
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
-
-
 
       if self.params.scheduler == 'ReduceLROnPlateau':
         self.scheduler.step(valid_logs['valid_loss'])
@@ -244,6 +243,9 @@ class Trainer():
 #        if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
 #          logging.info('Final Valid RMSE: Z500- {}. T850- {}, 2m_T- {}'.format(valid_weighted_rmse[0], valid_weighted_rmse[1], valid_weighted_rmse[2]))
 
+      if self.params.log_to_wandb:
+        logging.info("Logging to wandb")
+        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'epoch': epoch}})
 
 
   def train_one_epoch(self):
@@ -461,9 +463,9 @@ class Trainer():
         fig = vis_precip(fields)
         logs['vis'] = wandb.Image(fig)
         plt.close(fig)
-      wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
 
-    return valid_time, logs
+    validation_logs = {**logs, **grad_mag_logs, **image_logs}
+    return valid_time, validation_logs
 
   def inference_one_epoch(self):
     import copy
@@ -476,8 +478,12 @@ class Trainer():
       inference_params.interp = 0  # TODO(gideond) default value?
       inference_params.epoch = self.epoch
       inference_params.iters = self.iters
-      inference.autoregressive_inference(
+      inference_params.get_data_loader = False
+      inference_params.log_on_each_unroll_step_inference = False
+      sr, sp, vl, a, au, vc, ac, acu, accland, accsea, inference_logs = inference.autoregressive_inference(
          inference_params, 0, self.valid_dataset.data_array, self.model)
+      del sr, sp, vl, a, au, vc, ac, acu, accland, accsea
+      return inference_logs
 
   def validate_final(self):
     self.model.eval()
