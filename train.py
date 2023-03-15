@@ -77,6 +77,8 @@ import json
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ruamelDict
 
+from inference import inference
+
 class Trainer():
   def count_parameters(self):
     return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -205,6 +207,8 @@ class Trainer():
       start = time.time()
       tr_time, data_time, train_logs = self.train_one_epoch()
       valid_time, valid_logs = self.validate_one_epoch()
+      self.inference_one_epoch()
+
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
 
@@ -459,6 +463,17 @@ class Trainer():
       wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
 
     return valid_time, logs
+
+  def inference_one_epoch(self):
+    import copy
+    with torch.no_grad():
+      inference_params = copy.copy(self.params)
+      inference_params.means = self.valid_dataset.out_means[0]
+      inference_params.stds = self.valid_dataset.out_stds[0]
+      inference_params.time_means = self.valid_dataset.out_time_means[0]
+      inference_params.use_daily_climatology = False  # TODO(gideond) default value?
+      inference_params.interp = 0  # TODO(gideond) default value?
+      inference.autoregressive_inference(inference_params, 0, self.valid_dataset.data_array, self.model)
 
   def validate_final(self):
     self.model.eval()
