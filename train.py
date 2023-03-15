@@ -200,7 +200,7 @@ class Trainer():
 
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
-      logging.info("Epoch: %d" % epoch)
+      logging.info("Epoch: %d" % epoch + 1)
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
@@ -245,7 +245,7 @@ class Trainer():
 
       if self.params.log_to_wandb:
         logging.info("Logging to wandb")
-        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'epoch': epoch}})
+        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'epoch': epoch + 1}})
 
 
   def train_one_epoch(self):
