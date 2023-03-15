@@ -200,6 +200,7 @@ class Trainer():
 
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
+      logging.info("Epoch: %d" % epoch)
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
