@@ -462,6 +462,7 @@ class Trainer():
     return valid_time, validation_logs
 
   def inference_one_epoch(self):
+    logging.info("Starting inference on validation set...")
     import copy
     with torch.no_grad():
       inference_params = copy.copy(self.params)
@@ -474,10 +475,13 @@ class Trainer():
       inference_params.iters = self.iters
       inference_params.get_data_loader = False
       inference_params.log_on_each_unroll_step_inference = False
+      inference_params.log_to_wandb = True
+      inference_params.log_to_screen = False  # reduce noise in logs
       sr, sp, vl, a, au, vc, ac, acu, accland, accsea, inference_logs = inference.autoregressive_inference(
          inference_params, 0, self.valid_dataset.data_array, self.model)
       del sr, sp, vl, a, au, vc, ac, acu, accland, accsea
-      return inference_logs
+    
+    return inference_logs
 
   def validate_final(self):
     self.model.eval()

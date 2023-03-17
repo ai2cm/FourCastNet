@@ -338,15 +338,16 @@ def autoregressive_inference(params, ic, valid_data_full, model):
       all_metrics = [valid_loss, acc, global_mean_pred, global_mean_target, gradient_magnitude_pred, gradient_magnitude_target]
       all_metrics = np.array([m.cpu().numpy() for m in all_metrics])
       inference_logs = {}
-      for i in range(len(metric_names)):
-          for j, time_name in snapshot_timesteps:
-            for k in range(len(out_names)):
-              name = f'{metric_names[i]}_{time_name}/ic{ic}/channel{k}-{out_names[k]}'
-              try:
-                assert name not in inference_logs, "Duplicate name in inference logs"
-                inference_logs[name] = all_metrics[i, j, k]
-              except IndexError:
-                logging.error(f"Failed to label {name}")
+      for t, time_name in snapshot_timesteps:
+        logging.info(f"Logging metrics at {time_name}")
+        for i in range(len(metric_names)):
+          for j in range(len(out_names)):
+            name = f'{metric_names[i]}_{time_name}/ic{ic}/channel{j}-{out_names[j]}'
+            try:
+              assert name not in inference_logs, "Duplicate name in inference logs"
+              inference_logs[name] = all_metrics[i, t, j]
+            except IndexError:
+              logging.error(f"Failed to label {name}")
 
     seq_real = seq_real.cpu().numpy()
     seq_pred = seq_pred.cpu().numpy()
