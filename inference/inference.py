@@ -480,8 +480,7 @@ if __name__ == '__main__':
     #run autoregressive inference for multiple initial conditions
     for i, ic in enumerate(ics):
       logging.info("Initial condition {} of {}".format(i+1, n_ics))
-      sr, sp, vl, a, au, vc, ac, acu, accland, accsea, inference_logs = autoregressive_inference(params, ic, valid_data_full, model)
-      del inference_logs
+      sr, sp, vl, a, au, vc, ac, acu, accland, accsea, _ = autoregressive_inference(params, ic, valid_data_full, model)
 
       if i ==0 or len(valid_loss) == 0:
         seq_real = sr
