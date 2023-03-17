@@ -325,7 +325,10 @@ def autoregressive_inference(params, ic, valid_data_full, model):
               }
             )
 
-    if params.log_to_wandb and hasattr(params, 'epoch'):
+    # populate inference logs, if the caller decides to log to wandb. Otherwise,
+    # leave it as an empty dict.
+    inference_logs = {}
+    if params.log_to_wandb:
       # inspect snapshot times at 5-days and 10-days.
       snapshot_timesteps = [(24 // 6 * k, f"{k}-days") for k in [5, 10]]
 
