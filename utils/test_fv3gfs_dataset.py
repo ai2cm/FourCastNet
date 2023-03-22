@@ -1,8 +1,8 @@
 import os
 from .data_loader_fv3gfs import FV3GFSDataset
 
-TEST_PATH = "/Users/oliverwm/scratch/fv3gfs-fourcastnet/fourcastnet_vanilla_1_degree"
-TEST_STATS_PATH = "/Users/oliverwm/scratch/fv3gfs-fourcastnet/stats"
+TEST_PATH = "/traindata"
+TEST_STATS_PATH = "/statsdata"
 TEST_PARAMS = {
     "n_history": 0,
     "crop_size_x": None,
@@ -19,6 +19,7 @@ TEST_PARAMS = {
     "add_grid": False,
     "global_means_path": os.path.join(TEST_STATS_PATH, "fv3gfs-mean.nc"),
     "global_stds_path": os.path.join(TEST_STATS_PATH, "fv3gfs-stddev.nc"),
+    "time_means_path": os.path.join(TEST_STATS_PATH, "fv3gfs-time-mean.nc"),
 }
 
 
@@ -44,7 +45,7 @@ def test_FV3GFSDataset_init():
 
 def test_FV3GFSDataset_len():
     dataset = FV3GFSDataset(DotDict(TEST_PARAMS), TEST_PATH, True)
-    assert len(dataset) == 1459
+    assert len(dataset) == 235
 
 
 def test_FV3GFSDataset_getitem():
