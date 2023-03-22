@@ -1,5 +1,8 @@
+import copy
 import os
+import numpy as np
 from .data_loader_fv3gfs import FV3GFSDataset
+import pytest
 
 TEST_PATH = "/traindata"
 TEST_STATS_PATH = "/statsdata"
@@ -21,6 +24,11 @@ TEST_PARAMS = {
     "global_stds_path": os.path.join(TEST_STATS_PATH, "fv3gfs-stddev.nc"),
     "time_means_path": os.path.join(TEST_STATS_PATH, "fv3gfs-time-mean.nc"),
 }
+TEST_PARAMS_SPECIFY_BY_NAME = copy.copy(TEST_PARAMS)
+TEST_PARAMS_SPECIFY_BY_NAME.pop("in_channels")
+TEST_PARAMS_SPECIFY_BY_NAME.pop("out_channels")
+TEST_PARAMS_SPECIFY_BY_NAME["in_names"] = ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
+TEST_PARAMS_SPECIFY_BY_NAME["out_names"] = ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
 
 
 class DotDict:
@@ -37,8 +45,9 @@ class DotDict:
         return key in self.items
 
 
-def test_FV3GFSDataset_init():
-    dataset = FV3GFSDataset(DotDict(TEST_PARAMS), TEST_PATH, True)
+@pytest.mark.parametrize("params", [TEST_PARAMS, TEST_PARAMS_SPECIFY_BY_NAME])
+def test_FV3GFSDataset_init(params):
+    dataset = FV3GFSDataset(DotDict(params), TEST_PATH, True)
     assert dataset.in_names == ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
     assert dataset.out_names == ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
 

@@ -37,17 +37,12 @@ class FV3GFSDataset(Dataset):
     def __init__(self, params: MutableMapping, path: str, train: bool):
         self.params = params
         self._check_for_not_implemented_features()
+        self._resolve_channels_and_names()
         self.path = path
         self.full_path = os.path.join(path, "*.nc")
         self.train = train
         self.dt = params.dt
         self.n_history = params.n_history
-        self.in_channels = np.array(params.in_channels)
-        self.out_channels = np.array(params.out_channels)
-        self.n_in_channels = len(self.in_channels)
-        self.n_out_channels = len(self.out_channels)
-        self.in_names = [FV3GFS_NAMES[CHANNEL_NAMES[c]] for c in self.in_channels]
-        self.out_names = [FV3GFS_NAMES[CHANNEL_NAMES[c]] for c in self.out_channels]
         self.crop_size_x = params.crop_size_x
         self.crop_size_y = params.crop_size_y
         self.roll = params.roll
@@ -82,6 +77,26 @@ class FV3GFSDataset(Dataset):
         if self.params.add_grid:
             raise NotImplementedError("add_grid not implemented for FV3GFSDataset")
 
+    def _resolve_channels_and_names(self):
+        if "in_channels" in self.params and "in_names" in self.params:
+            raise ValueError("Cannot specify both 'in_channels' and 'in_names' params.")
+        if "out_channels" in self.params and "out_names" in self.params:
+            raise ValueError("Cannot specify both 'out_channels' and 'out_names' params.")
+
+        if "in_channels" in self.params:
+            self.in_names = [FV3GFS_NAMES[CHANNEL_NAMES[c]] for c in self.params.in_channels]
+        else:
+            self.in_names = self.params.in_names
+
+        if "out_channels" in self.params:
+            self.out_names = [FV3GFS_NAMES[CHANNEL_NAMES[c]] for c in self.params.out_channels]
+        else:
+            self.out_names = self.params.out_names
+    
+        self.n_in_channels = len(self.in_names)
+        self.n_out_channels = len(self.out_names)
+       
+        
     def _get_files_stats(self):
         logging.info(f"Opening data at {self.full_path}")
         self.ds = netCDF4.MFDataset(self.full_path)
