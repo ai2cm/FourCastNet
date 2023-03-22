@@ -39,8 +39,8 @@ class DotDict:
 
 def test_FV3GFSDataset_init():
     dataset = FV3GFSDataset(DotDict(TEST_PARAMS), TEST_PATH, True)
-    dataset.in_names == ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
-    dataset.out_names == ["UGRD10m", "VGRD10m", "TMP850", "TCWV", "Z500"]
+    assert dataset.in_names == ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
+    assert dataset.out_names == ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
 
 
 def test_FV3GFSDataset_len():
