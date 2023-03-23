@@ -123,10 +123,10 @@ def setup(params):
     if params.log_to_screen:
         logging.info('Loading trained model checkpoint from {}'.format(params['best_checkpoint_path']))
 
-    #in_channels = np.array(params.in_channels)
-    #out_channels = np.array(params.out_channels)
-    n_in_channels = params.N_in_channels
-    n_out_channels = params.N_out_channels
+    n_in_channels = valid_dataset.n_in_channels
+    n_out_channels = valid_dataset.n_out_channels
+    params.in_names = valid_dataset.in_names
+    params.out_names = valid_dataset.out_names
     
     if params["orography"]:
       params['N_in_channels'] = n_in_channels + 1
@@ -166,8 +166,6 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     n_history = params.n_history
     img_shape_x = params.img_shape_x
     img_shape_y = params.img_shape_y
-    #in_channels = np.array(params.in_channels)
-    #out_channels = np.array(params.out_channels)
     n_in_channels = params.N_in_channels
     n_out_channels = params.N_out_channels
     out_names = params.out_names
@@ -215,7 +213,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
       dc_path = params.dc_path
       with h5py.File(dc_path, 'r') as f:
         dc = f['time_means_daily'][ic:ic+prediction_length*dt:dt] # 1460,21,721,1440
-      m = torch.as_tensor((dc[:,out_channels,0:img_shape_x,:] - means)/stds) 
+      m = torch.as_tensor((dc[:,params.out_channels,0:img_shape_x,:] - means)/stds) 
 
     m = m.to(device, dtype=torch.float)
     if params.interp > 0:
