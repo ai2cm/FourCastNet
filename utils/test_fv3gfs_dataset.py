@@ -7,6 +7,8 @@ import pytest
 
 TEST_PATH = "/traindata"
 TEST_STATS_PATH = "/statsdata"
+TEST_IN_NAMES = ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
+TEST_OUT_NAMES = ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
 TEST_PARAMS = {
     "n_history": 0,
     "crop_size_x": None,
@@ -28,8 +30,8 @@ TEST_PARAMS = {
 TEST_PARAMS_SPECIFY_BY_NAME = copy.copy(TEST_PARAMS)
 TEST_PARAMS_SPECIFY_BY_NAME.pop("in_channels")
 TEST_PARAMS_SPECIFY_BY_NAME.pop("out_channels")
-TEST_PARAMS_SPECIFY_BY_NAME["in_names"] = ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
-TEST_PARAMS_SPECIFY_BY_NAME["out_names"] = ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
+TEST_PARAMS_SPECIFY_BY_NAME["in_names"] = TEST_IN_NAMES
+TEST_PARAMS_SPECIFY_BY_NAME["out_names"] = TEST_OUT_NAMES
 
 
 class DotDict:
@@ -49,8 +51,8 @@ class DotDict:
 @pytest.mark.parametrize("params", [TEST_PARAMS, TEST_PARAMS_SPECIFY_BY_NAME])
 def test_FV3GFSDataset_init(params):
     dataset = FV3GFSDataset(DotDict(params), TEST_PATH, True)
-    assert dataset.in_names == ["UGRD10m", "VGRD10m", "PRMSL", "TCWV"]
-    assert dataset.out_names == ["UGRD10m", "VGRD10m", "TMP850", "TCWV"]
+    assert dataset.in_names == TEST_IN_NAMES
+    assert dataset.out_names == TEST_OUT_NAMES
 
 
 def test_FV3GFSDataset_len():
@@ -66,3 +68,15 @@ def test_FV3GFSDataset_getitem():
     assert len(output) == 2
     assert output[0].shape == (len(TEST_PARAMS["in_channels"]), 180, 360)
     assert output[1].shape == (len(TEST_PARAMS["out_channels"]), 180, 360)
+
+
+def test_FV3GFSDataset_raises_value_error_if_names_and_channels_both_specified():
+    params = copy.copy(TEST_PARAMS)
+    params['in_names'] = ['foo', 'bar']
+    with pytest.raises(ValueError):
+        FV3GFSDataset(DotDict(params), TEST_PATH, True)
+
+    params = copy.copy(TEST_PARAMS)
+    params['out_names'] = ['foo', 'bar']
+    with pytest.raises(ValueError):
+        FV3GFSDataset(DotDict(params), TEST_PATH, True)
