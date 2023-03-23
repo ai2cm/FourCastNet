@@ -1,6 +1,7 @@
 import copy
 import os
 import numpy as np
+import netCDF4
 from .data_loader_fv3gfs import FV3GFSDataset
 import pytest
 
@@ -54,7 +55,9 @@ def test_FV3GFSDataset_init(params):
 
 def test_FV3GFSDataset_len():
     dataset = FV3GFSDataset(DotDict(TEST_PARAMS), TEST_PATH, True)
-    assert len(dataset) == 235
+    full_path = os.path.join(TEST_PATH, "*.nc")
+    expected_length = len(netCDF4.MFDataset(full_path).variables["time"][:]) - 1
+    assert len(dataset) == expected_length
 
 
 def test_FV3GFSDataset_getitem():
