@@ -176,7 +176,7 @@ class AFNONet(nn.Module):
             patch_size=(16, 16),
             in_chans=2,
             out_chans=2,
-            embed_dim=48,
+            embed_dim=768,
             depth=12,
             mlp_ratio=4.,
             drop_rate=0.,
