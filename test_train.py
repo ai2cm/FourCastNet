@@ -79,6 +79,7 @@ def _get_test_yaml_file(train_data_path,
                         time_means_path,
                         global_means_path,
                         global_stds_path,
+                        prediction_length,
                         config_name="unit_test"):
 
     string = f"""
@@ -90,7 +91,7 @@ def _get_test_yaml_file(train_data_path,
        dt: 1 # how many timesteps ahead the model will predict
        n_history: 0 #how many previous timesteps to consider
        prediction_type: 'iterative'
-       prediction_length: 41 #applicable only if prediction_type == 'iterative'
+       prediction_length: {prediction_length} #applicable only if prediction_type == 'iterative'
        n_initial_conditions: 1 #applicable only if prediction_type == 'iterative'
        ics_type: "default"
        save_raw_forecasts: !!bool True
@@ -169,32 +170,34 @@ def test_train_runs_era5():
     # TODO(gideond) parameterize
     seed = 0
     np.random.seed(seed)
-    num_time_steps, num_channels, height, width = 8, 20, 720 + 1, 1440
+    num_time_steps, num_channels, height, width = 8, 20, 720, 1440
 
     with tempfile.TemporaryDirectory() as train_dir, \
          tempfile.TemporaryDirectory() as valid_dir, \
          tempfile.TemporaryDirectory() as stats_dir, \
          tempfile.TemporaryDirectory() as results_dir:
         _ = _save_to_tmpfile(np.random.randn(
-            num_time_steps, num_channels, height, width), dir=train_dir, filetype='h5')
+            num_time_steps, num_channels, height + 1, width), dir=train_dir, filetype='h5')
         _ = _save_to_tmpfile(np.random.randn(
-            num_time_steps, num_channels, height, width), dir=valid_dir, filetype='h5')
+            num_time_steps, num_channels, height + 1, width), dir=valid_dir, filetype='h5')
         time_means = _save_to_tmpfile(np.random.randn(
             1, num_channels + 1, height, width), dir=valid_dir, filetype='npy')
         global_means = _save_to_tmpfile(np.random.randn(
-            1, num_channels + 1, height - 1, width), dir=stats_dir, filetype='npy')
+            1, num_channels + 1, height, width), dir=stats_dir, filetype='npy')
         global_stds = _save_to_tmpfile(abs(np.random.randn(
-            1, num_channels + 1, height - 1, width)), dir=stats_dir, filetype='npy')
+            1, num_channels + 1, height, width)), dir=stats_dir, filetype='npy')
 
         yaml_config = _get_test_yaml_file(
             train_dir, valid_dir, valid_dir, 
-            results_dir, time_means, global_means, global_stds)
+            results_dir, time_means, global_means, global_stds, prediction_length = num_time_steps)
         params = YParams(yaml_config, "unit_test")
+        params['experiment_dir'] = results_dir
         params. N_in_channels = num_channels
         params. N_out_channels = num_channels
         params.enable_amp = True  # seems to be the common default
         params.log_to_wandb = False
         params.resuming = False  # do not use checkpoint
+        params.save_checkpoint = False
         params.roll = False
         world_rank = 0
 
