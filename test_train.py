@@ -143,32 +143,47 @@ def _get_test_yaml_file(train_data_path,
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
         f.write(string)
-        temp_filename = f.name
         return f.name
 
+def _get_unit_test_data(
+        num_time_steps=8, num_channels=20, height=720, width=1440, seed=0):
+    data = np.random.rand(num_time_steps, num_channels, height, width)
+
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with h5py.File(f.name, 'w') as hf:
+            hf.create_dataset('fields', data=data)
+
+        return f
 
 def test_train_runs():
     """Make sure that the training runs without errors."""
-    train_data_path = ""
-    valid_data_path = ""
-    inf_data_path = ""
-    results_dir = ""
+
+    unit_test_data_file = _get_unit_test_data()
+    data_path = unit_test_data_file.name
+    results_dir =  tempfile.TemporaryDirectory()
+
+    train_data_path = data_path
+    valid_data_path = data_path
+    inf_data_path = data_path
+
+    # TODO(gideond) - add temp files for the other normalization types
     time_means_path = ""
     global_means_path = ""
     global_stds_path = ""
     test_yaml_config = _get_test_yaml_file(
         train_data_path, valid_data_path, inf_data_path, 
-        results_dir, time_means_path, global_means_path, global_stds_path)
-
-    # with open(test_yaml_config) as f:
-    #     from ruamel.yaml import YAML
-    #     print(YAML().load(f)[test_config_name])
+        results_dir.name, time_means_path, global_means_path, global_stds_path)
 
     params = YParams(test_yaml_config, "unit_test")
     params.log_to_wandb = False
     world_rank = 0
     trainer = Trainer(params, world_rank)
+
     # # trainer.train()
     # assert False
+
+    os.remove(unit_test_data_file.name)
+    os.remove(test_yaml_config)
+    results_dir.cleanup()
 
 test_train_runs()
