@@ -77,10 +77,11 @@ def _get_test_yaml_file(train_data_path,
                         results_dir,
                         time_means_path,
                         global_means_path,
-                        global_stds_path):
+                        global_stds_path,
+                        config_name="unit_test"):
 
     string = f"""
-     unit_test: &unit_test
+     {config_name}: &{config_name}
        loss: 'l2'
        lr: 5E-4
        scheduler: 'CosineAnnealingLR'
@@ -139,17 +140,14 @@ def _get_test_yaml_file(train_data_path,
 
        add_noise: !!bool False
        noise_std: 0
+
     """
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
         f.write(string)
         return f.name
 
-def _save_to_tmpfile(data, dir, process_fn=None, filetype='h5'):
-
-    if process_fn is not None:
-        process_fn(data)
-
+def _save_to_tmpfile(data, dir, filetype='h5'):
     suffices = {'h5': '.h5', 'npy': '.npy'}
     if filetype not in suffices:
         raise ValueError(f'Unknown save format {filetype}')
@@ -159,12 +157,12 @@ def _save_to_tmpfile(data, dir, process_fn=None, filetype='h5'):
             with h5py.File(f.name, 'w') as hf:
                 hf.create_dataset('fields', data=data)
         elif filetype == 'npy':
-            np.save(f.name, data)
+            np.save(f.name, data)  # TODO(gideond) allow_pickle?
         else:
             raise ValueError(f'Unknown save format {filetype}')
         return f.name
 
-def test_train_runs():
+def test_train_runs_era5():
     """Make sure that the training runs without errors."""
 
     # TODO(gideond) parameterize
@@ -172,31 +170,29 @@ def test_train_runs():
     np.random.seed(seed)
     num_time_steps, num_channels, height, width = 8, 20, 720, 1440
 
+    # TODO(gideond) with statement
     tmpdir = tempfile.TemporaryDirectory()
+    results_dir =  tempfile.TemporaryDirectory()
 
-    input_data = _save_to_tmpfile(np.random.randn(
+    _ = _save_to_tmpfile(np.random.randn(
         num_time_steps, num_channels, height, width), dir=tmpdir.name, filetype='h5')
     time_means = _save_to_tmpfile(np.random.randn(
-        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='h5')
+        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='npy')
     global_means = _save_to_tmpfile(np.random.randn(
         1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='npy')
     global_stds = _save_to_tmpfile(abs(np.random.randn(
         1, num_channels + 1, height + 1, width)), dir=tmpdir.name, filetype='npy')
 
-    results_dir =  tempfile.TemporaryDirectory()
+    yaml_config = _get_test_yaml_file(tmpdir.name, tmpdir.name, tmpdir.name, results_dir.name, time_means, global_means, global_stds)
+    params = YParams(yaml_config, "unit_test")
+    params. N_in_channels = num_channels
+    params. N_out_channels = num_channels
+    params.enable_amp = True  # seems to be the common default
+    params.log_to_wandb = False
+    params.resuming = False  # do not use checkpoint
+    world_rank = 0
 
-    # # TODO(gideond) - add temp files for the other normalization types
-    # time_means_path = time_means.name
-    # global_means_path = global_means.name
-    # global_stds_path = global_stds.name
-    # test_yaml_config = _get_test_yaml_file(
-    #     train_data_path, valid_data_path, inf_data_path, 
-    #     results_dir.name, time_means_path, global_means_path, global_stds_path)
-
-    # params = YParams(test_yaml_config, "unit_test")
-    # params.log_to_wandb = False
-    # world_rank = 0
-    # trainer = Trainer(params, world_rank)
+    trainer = Trainer(params, world_rank)
 
     # # # trainer.train()
     # # assert False
@@ -208,4 +204,4 @@ def test_train_runs():
     tmpdir.cleanup()
     results_dir.cleanup()
 
-test_train_runs()
+test_train_runs_era5()
