@@ -103,7 +103,7 @@ def _get_test_yaml_file(train_data_path,
        N_grid_channels: 0
        gridtype: 'sinusoidal' #options 'sinusoidal' or 'linear'
        roll: !!bool False
-       max_epochs: 50
+       max_epochs: 1
        batch_size: 2
 
        #afno hyperparams
