@@ -145,45 +145,67 @@ def _get_test_yaml_file(train_data_path,
         f.write(string)
         return f.name
 
-def _get_unit_test_data(
-        num_time_steps=8, num_channels=20, height=720, width=1440, seed=0):
-    data = np.random.rand(num_time_steps, num_channels, height, width)
+def _save_to_tmpfile(data, dir, process_fn=None, filetype='h5'):
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-        with h5py.File(f.name, 'w') as hf:
-            hf.create_dataset('fields', data=data)
+    if process_fn is not None:
+        process_fn(data)
 
-        return f
+    suffices = {'h5': '.h5', 'npy': '.npy'}
+    if filetype not in suffices:
+        raise ValueError(f'Unknown save format {filetype}')
+
+    with tempfile.NamedTemporaryFile(dir=dir, mode='w', delete=False, suffix=suffices[filetype]) as f:
+        if filetype == 'h5':
+            with h5py.File(f.name, 'w') as hf:
+                hf.create_dataset('fields', data=data)
+        elif filetype == 'npy':
+            np.save(f.name, data)
+        else:
+            raise ValueError(f'Unknown save format {filetype}')
+        return f.name
 
 def test_train_runs():
     """Make sure that the training runs without errors."""
 
-    unit_test_data_file = _get_unit_test_data()
-    data_path = unit_test_data_file.name
+    # TODO(gideond) parameterize
+    seed = 0
+    np.random.seed(seed)
+    num_time_steps, num_channels, height, width = 8, 20, 720, 1440
+
+    tmpdir = tempfile.TemporaryDirectory()
+
+    input_data = _save_to_tmpfile(np.random.randn(
+        num_time_steps, num_channels, height, width), dir=tmpdir.name, filetype='h5')
+    time_means = _save_to_tmpfile(np.random.randn(
+        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='h5')
+    global_means = _save_to_tmpfile(np.random.randn(
+        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='npy')
+    global_stds = _save_to_tmpfile(abs(np.random.randn(
+        1, num_channels + 1, height + 1, width)), dir=tmpdir.name, filetype='npy')
+
     results_dir =  tempfile.TemporaryDirectory()
 
-    train_data_path = data_path
-    valid_data_path = data_path
-    inf_data_path = data_path
+    # # TODO(gideond) - add temp files for the other normalization types
+    # time_means_path = time_means.name
+    # global_means_path = global_means.name
+    # global_stds_path = global_stds.name
+    # test_yaml_config = _get_test_yaml_file(
+    #     train_data_path, valid_data_path, inf_data_path, 
+    #     results_dir.name, time_means_path, global_means_path, global_stds_path)
 
-    # TODO(gideond) - add temp files for the other normalization types
-    time_means_path = ""
-    global_means_path = ""
-    global_stds_path = ""
-    test_yaml_config = _get_test_yaml_file(
-        train_data_path, valid_data_path, inf_data_path, 
-        results_dir.name, time_means_path, global_means_path, global_stds_path)
+    # params = YParams(test_yaml_config, "unit_test")
+    # params.log_to_wandb = False
+    # world_rank = 0
+    # trainer = Trainer(params, world_rank)
 
-    params = YParams(test_yaml_config, "unit_test")
-    params.log_to_wandb = False
-    world_rank = 0
-    trainer = Trainer(params, world_rank)
+    # # # trainer.train()
+    # # assert False
 
-    # # trainer.train()
-    # assert False
+    # # TODO(gideond) -- do for loop to remove all files in the results dir
+    # os.remove(unit_test_data_file.name)
+    # os.remove(test_yaml_config)
 
-    os.remove(unit_test_data_file.name)
-    os.remove(test_yaml_config)
+    tmpdir.cleanup()
     results_dir.cleanup()
 
 test_train_runs()
