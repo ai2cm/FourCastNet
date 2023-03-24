@@ -117,8 +117,9 @@ class Trainer():
         raise Exception("no backbone model weights specified")
       # load a wind model 
       # the wind model has out channels = in channels
-      out_channels = np.array(params['in_channels'])
-      params['N_out_channels'] = len(out_channels)
+      precip_N_out_channels = params.N_out_channels
+      backbone_N_out_channels = params.N_in_channels
+      params['N_out_channels'] = backbone_N_out_channels
 
       if params.nettype_wind == 'afno':
         self.model_wind = AFNONet(params).to(self.device)
@@ -135,7 +136,7 @@ class Trainer():
 
     # reset out_channels for precip models
     if self.precip:
-      params['N_out_channels'] = len(params['out_channels'])
+      params['N_out_channels'] = precip_N_out_channels
 
     if params.nettype == 'afno':
       self.model = AFNONet(params).to(self.device) 
@@ -214,7 +215,10 @@ class Trainer():
       start = time.time()
       _, _, train_logs = self.train_one_epoch()
       valid_time, valid_logs = self.validate_one_epoch()
-      inference_logs = self.inference_one_epoch()
+      if 'precip' in self.params:
+        inference_logs = {}
+      else:
+        inference_logs = self.inference_one_epoch()
 
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
@@ -400,7 +404,7 @@ class Trainer():
         tar_gradient_magnitude = weighted_global_mean_gradient_magnitude(tar_for_rmse)
         valid_gradient_magnitude_diff += 100 * (gen_gradient_magnitude - tar_gradient_magnitude) / tar_gradient_magnitude
 
-        if not self.precip and i % 10 == 0:
+        if i % 10 == 0:
             for j in range(gen.shape[1]):
               name = self.valid_dataset.out_names[j]
               gap = torch.zeros((self.valid_dataset.img_shape_x, 4)).to(self.device, dtype = torch.float)
@@ -442,28 +446,22 @@ class Trainer():
 
     valid_time = time.time() - valid_start
     valid_weighted_rmse = mult*torch.mean(valid_weighted_rmse, axis = 0)
+
     if self.precip:
-      logs = {'valid_l1': valid_buff_cpu[1], 'valid_loss': valid_buff_cpu[0], 'valid_rmse_tp': valid_weighted_rmse_cpu[0]}
+      variable_specific_logs = {'valid_rmse_tp': valid_weighted_rmse_cpu[0]}
     else:
-      logs = {
-         'valid_l1': valid_buff_cpu[1],
-         'valid_loss': valid_buff_cpu[0],
+      variable_specific_logs = {
          'valid_rmse_u10': valid_weighted_rmse_cpu[0],
          'valid_rmse_v10': valid_weighted_rmse_cpu[1],
          
       }
-      grad_mag_logs = {
-         f'valid_gradient_magnitude_percent_diff/channel{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
-         for c, name in enumerate(self.valid_dataset.out_names)
-      }
-    
-    if self.params.log_to_wandb:
-      if self.precip:
-        fig = vis_precip(fields)
-        logs['vis'] = wandb.Image(fig)
-        plt.close(fig)
+    logs = {'valid_l1': valid_buff_cpu[1], 'valid_loss': valid_buff_cpu[0]}
+    grad_mag_logs = {
+        f'valid_gradient_magnitude_percent_diff/channel{c}-{name}': valid_gradient_magnitude_diff_cpu[c]
+        for c, name in enumerate(self.valid_dataset.out_names)
+    }
 
-    validation_logs = {**logs, **grad_mag_logs, **image_logs}
+    validation_logs = {**logs, **grad_mag_logs, **image_logs, **variable_specific_logs}
     return valid_time, validation_logs
 
   def inference_one_epoch(self):

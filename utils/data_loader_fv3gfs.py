@@ -71,9 +71,6 @@ class FV3GFSDataset(Dataset):
         if self.params.orography:
             msg = "training w/ orography not implemented for FV3GFSDataset"
             raise NotImplementedError(msg)
-        if "precip" in self.params:
-            msg = "precip training not implemented for FV3GFSDataset"
-            raise NotImplementedError(msg)
         if self.params.add_grid:
             raise NotImplementedError("add_grid not implemented for FV3GFSDataset")
 
