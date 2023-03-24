@@ -177,11 +177,11 @@ def test_train_runs_era5():
     _ = _save_to_tmpfile(np.random.randn(
         num_time_steps, num_channels, height, width), dir=tmpdir.name, filetype='h5')
     time_means = _save_to_tmpfile(np.random.randn(
-        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='npy')
+        1, num_channels + 1, height, width), dir=tmpdir.name, filetype='npy')
     global_means = _save_to_tmpfile(np.random.randn(
-        1, num_channels + 1, height + 1, width), dir=tmpdir.name, filetype='npy')
+        1, num_channels + 1, height, width), dir=tmpdir.name, filetype='npy')
     global_stds = _save_to_tmpfile(abs(np.random.randn(
-        1, num_channels + 1, height + 1, width)), dir=tmpdir.name, filetype='npy')
+        1, num_channels + 1, height, width)), dir=tmpdir.name, filetype='npy')
 
     yaml_config = _get_test_yaml_file(tmpdir.name, tmpdir.name, tmpdir.name, results_dir.name, time_means, global_means, global_stds)
     params = YParams(yaml_config, "unit_test")
@@ -193,8 +193,8 @@ def test_train_runs_era5():
     world_rank = 0
 
     trainer = Trainer(params, world_rank)
+    trainer.train()
 
-    # # # trainer.train()
     # # assert False
 
     # # TODO(gideond) -- do for loop to remove all files in the results dir
