@@ -168,7 +168,7 @@ def test_train_runs_era5():
     # TODO(gideond) parameterize
     seed = 0
     np.random.seed(seed)
-    num_time_steps, num_channels, height, width = 8, 20, 720, 1440
+    num_time_steps, num_channels, height, width = 8, 20, 7, 14
 
     # TODO(gideond) with statement
     tmpdir = tempfile.TemporaryDirectory()
@@ -203,5 +203,3 @@ def test_train_runs_era5():
 
     tmpdir.cleanup()
     results_dir.cleanup()
-
-test_train_runs_era5()
