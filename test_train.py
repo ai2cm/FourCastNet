@@ -168,38 +168,36 @@ def test_train_runs_era5():
     # TODO(gideond) parameterize
     seed = 0
     np.random.seed(seed)
-    num_time_steps, num_channels, height, width = 8, 20, 7, 14
+    num_time_steps, num_channels, height, width = 8, 20, 8, 16
 
-    # TODO(gideond) with statement
-    tmpdir = tempfile.TemporaryDirectory()
-    results_dir =  tempfile.TemporaryDirectory()
+    with tempfile.TemporaryDirectory() as train_dir, \
+         tempfile.TemporaryDirectory() as valid_dir, \
+         tempfile.TemporaryDirectory() as stats_dir, \
+         tempfile.TemporaryDirectory() as results_dir:
+        _ = _save_to_tmpfile(np.random.randn(
+            num_time_steps, num_channels, height, width), dir=train_dir, filetype='h5')
+        _ = _save_to_tmpfile(np.random.randn(
+            num_time_steps, num_channels, height, width), dir=valid_dir, filetype='h5')
+        time_means = _save_to_tmpfile(np.random.randn(
+            1, num_channels + 1, height, width), dir=valid_dir, filetype='npy')
+        global_means = _save_to_tmpfile(np.random.randn(
+            1, num_channels + 1, height, width), dir=stats_dir, filetype='npy')
+        global_stds = _save_to_tmpfile(abs(np.random.randn(
+            1, num_channels + 1, height, width)), dir=stats_dir, filetype='npy')
 
-    _ = _save_to_tmpfile(np.random.randn(
-        num_time_steps, num_channels, height, width), dir=tmpdir.name, filetype='h5')
-    time_means = _save_to_tmpfile(np.random.randn(
-        1, num_channels + 1, height, width), dir=tmpdir.name, filetype='npy')
-    global_means = _save_to_tmpfile(np.random.randn(
-        1, num_channels + 1, height, width), dir=tmpdir.name, filetype='npy')
-    global_stds = _save_to_tmpfile(abs(np.random.randn(
-        1, num_channels + 1, height, width)), dir=tmpdir.name, filetype='npy')
+        yaml_config = _get_test_yaml_file(
+            train_dir, valid_dir, valid_dir, 
+            results_dir, time_means, global_means, global_stds)
+        params = YParams(yaml_config, "unit_test")
+        params. N_in_channels = num_channels
+        params. N_out_channels = num_channels
+        params.enable_amp = True  # seems to be the common default
+        params.log_to_wandb = False
+        params.resuming = False  # do not use checkpoint
+        params.roll = False
+        world_rank = 0
 
-    yaml_config = _get_test_yaml_file(tmpdir.name, tmpdir.name, tmpdir.name, results_dir.name, time_means, global_means, global_stds)
-    params = YParams(yaml_config, "unit_test")
-    params. N_in_channels = num_channels
-    params. N_out_channels = num_channels
-    params.enable_amp = True  # seems to be the common default
-    params.log_to_wandb = False
-    params.resuming = False  # do not use checkpoint
-    world_rank = 0
+        trainer = Trainer(params, world_rank)
+        trainer.train()
 
-    trainer = Trainer(params, world_rank)
-    trainer.train()
-
-    # # assert False
-
-    # # TODO(gideond) -- do for loop to remove all files in the results dir
-    # os.remove(unit_test_data_file.name)
-    # os.remove(test_yaml_config)
-
-    tmpdir.cleanup()
-    results_dir.cleanup()
+test_train_runs_era5()
