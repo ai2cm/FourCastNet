@@ -35,6 +35,10 @@ TEST_PARAMS_SPECIFY_BY_NAME["out_names"] = TEST_OUT_NAMES
 
 
 class DotDict:
+"""Overrides the dot operator for accessing fields to be dict lookup.
+
+e.g. `dotdict.key == dotdict['key']  == dotdict.items['key']`
+"""
     def __init__(self, items):
         self.items = items
 
