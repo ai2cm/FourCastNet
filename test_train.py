@@ -169,7 +169,7 @@ def test_train_runs_era5():
     # TODO(gideond) parameterize
     seed = 0
     np.random.seed(seed)
-    num_time_steps, num_channels, height, width = 8, 20, 8, 16
+    num_time_steps, num_channels, height, width = 8, 20, 720 + 1, 1440
 
     with tempfile.TemporaryDirectory() as train_dir, \
          tempfile.TemporaryDirectory() as valid_dir, \
@@ -182,9 +182,9 @@ def test_train_runs_era5():
         time_means = _save_to_tmpfile(np.random.randn(
             1, num_channels + 1, height, width), dir=valid_dir, filetype='npy')
         global_means = _save_to_tmpfile(np.random.randn(
-            1, num_channels + 1, height, width), dir=stats_dir, filetype='npy')
+            1, num_channels + 1, height - 1, width), dir=stats_dir, filetype='npy')
         global_stds = _save_to_tmpfile(abs(np.random.randn(
-            1, num_channels + 1, height, width)), dir=stats_dir, filetype='npy')
+            1, num_channels + 1, height - 1, width)), dir=stats_dir, filetype='npy')
 
         yaml_config = _get_test_yaml_file(
             train_dir, valid_dir, valid_dir, 
