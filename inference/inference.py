@@ -123,10 +123,10 @@ def setup(params):
     if params.log_to_screen:
         logging.info('Loading trained model checkpoint from {}'.format(params['best_checkpoint_path']))
 
-    in_channels = np.array(params.in_channels)
-    out_channels = np.array(params.out_channels)
-    n_in_channels = len(in_channels)
-    n_out_channels = len(out_channels)
+    n_in_channels = valid_dataset.n_in_channels
+    n_out_channels = valid_dataset.n_out_channels
+    params.in_names = valid_dataset.in_names
+    params.out_names = valid_dataset.out_names
     
     if params["orography"]:
       params['N_in_channels'] = n_in_channels + 1
@@ -136,6 +136,8 @@ def setup(params):
     params.means = valid_dataset.out_means[0] # needed to standardize wind data
     params.stds = valid_dataset.out_stds[0]
     params.time_means = valid_dataset.out_time_means[0]
+
+    params.log_on_each_unroll_step_inference = True
 
     # load the model
     if params.nettype == 'afno':
@@ -164,11 +166,9 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     n_history = params.n_history
     img_shape_x = params.img_shape_x
     img_shape_y = params.img_shape_y
-    in_channels = np.array(params.in_channels)
-    out_channels = np.array(params.out_channels)
-    n_in_channels = len(in_channels)
-    n_out_channels = len(out_channels)
-    out_names = [CHANNEL_NAMES[c] for c in out_channels]
+    n_in_channels = params.N_in_channels
+    n_out_channels = params.N_out_channels
+    out_names = params.out_names
     means = params.means
     stds = params.stds
     time_means = params.time_means
@@ -195,7 +195,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     if params.masked_acc:
       maskarray = torch.as_tensor(np.load(params.maskpath)[0:720]).to(device, dtype=torch.float)
 
-    valid_data = valid_data_full[ic:(ic+prediction_length*dt+n_history*dt):dt, in_channels] #extract valid data from first year
+    valid_data = valid_data_full[ic:(ic+prediction_length*dt+n_history*dt):dt] #extract valid data from first year
     if valid_data.shape[2] > 720:
        # might be necessary for ERA5 data
        valid_data = valid_data[:, :, 0:720]
@@ -206,14 +206,14 @@ def autoregressive_inference(params, ic, valid_data_full, model):
 
     #load time means
     if not params.use_daily_climatology:
-      m = torch.as_tensor((time_means[out_channels] - means)/stds)[:, 0:img_shape_x]
+      m = torch.as_tensor((time_means - means)/stds)[:, 0:img_shape_x]
       m = torch.unsqueeze(m, 0)
     else:
       # use daily clim like weyn et al. (different from rasp)
       dc_path = params.dc_path
       with h5py.File(dc_path, 'r') as f:
         dc = f['time_means_daily'][ic:ic+prediction_length*dt:dt] # 1460,21,721,1440
-      m = torch.as_tensor((dc[:,out_channels,0:img_shape_x,:] - means)/stds) 
+      m = torch.as_tensor((dc[:,params.out_channels,0:img_shape_x,:] - means)/stds) 
 
     m = m.to(device, dtype=torch.float)
     if params.interp > 0:
@@ -311,18 +311,21 @@ def autoregressive_inference(params, ic, valid_data_full, model):
             f'global_mean_gradient_magnitude_target/ic{ic}/channel{c}-{name}':
             gradient_magnitude_target[i, c] for c, name in enumerate(out_names)
           }
-          wandb.log(
-            {
-              **rmse_metrics,
-              **acc_metrics,
-              **mean_pred_metrics,
-              **mean_target_metrics,
-              **grad_mag_pred_metrics,
-              **grad_mag_target_metrics
-            }
-          )
-              
+          if params.log_on_each_unroll_step_inference:
+            wandb.log(
+              {
+                **rmse_metrics,
+                **acc_metrics,
+                **mean_pred_metrics,
+                **mean_target_metrics,
+                **grad_mag_pred_metrics,
+                **grad_mag_target_metrics
+              }
+            )
 
+    # populate inference logs, if the caller decides to log to wandb. Otherwise,
+    # leave it as an empty dict.
+    inference_logs = {}
     if params.log_to_wandb:
       # inspect snapshot times at 5-days and 10-days.
       snapshot_timesteps = [(24 // 6 * k, f"{k}-days") for k in [5, 10]]
@@ -332,14 +335,17 @@ def autoregressive_inference(params, ic, valid_data_full, model):
       # All metrics has shape [metric_type, timestep, channel]
       all_metrics = [valid_loss, acc, global_mean_pred, global_mean_target, gradient_magnitude_pred, gradient_magnitude_target]
       all_metrics = np.array([m.cpu().numpy() for m in all_metrics])
-      for i in range(len(metric_names)):
-          for j, time_name in snapshot_timesteps:
-            for k in range(len(out_names)):
-              name = f'{metric_names[i]}_{time_name}/ic{ic}/channel{k}-{out_names[k]}'
-              try:
-                wandb.log({name: all_metrics[i, j, k]})
-              except IndexError:
-                logging.error(f"Failed to log {name}")
+      inference_logs = {}
+      for t, time_name in snapshot_timesteps:
+        logging.info(f"Logging metrics at {time_name}")
+        for i in range(len(metric_names)):
+          for j in range(len(out_names)):
+            name = f'{metric_names[i]}_{time_name}/ic{ic}/channel{j}-{out_names[j]}'
+            try:
+              assert name not in inference_logs, "Duplicate name in inference logs"
+              inference_logs[name] = all_metrics[i, t, j]
+            except IndexError:
+              logging.error(f"Failed to label {name}")
 
     seq_real = seq_real.cpu().numpy()
     seq_pred = seq_pred.cpu().numpy()
@@ -356,7 +362,8 @@ def autoregressive_inference(params, ic, valid_data_full, model):
            np.expand_dims(acc_unweighted, 0), np.expand_dims(valid_loss_coarse, 0), np.expand_dims(acc_coarse, 0),
            np.expand_dims(acc_coarse_unweighted, 0),
            np.expand_dims(acc_land, 0),
-           np.expand_dims(acc_sea, 0))
+           np.expand_dims(acc_sea, 0),
+           inference_logs)
 
 
 if __name__ == '__main__':
@@ -471,7 +478,7 @@ if __name__ == '__main__':
     #run autoregressive inference for multiple initial conditions
     for i, ic in enumerate(ics):
       logging.info("Initial condition {} of {}".format(i+1, n_ics))
-      sr, sp, vl, a, au, vc, ac, acu, accland, accsea = autoregressive_inference(params, ic, valid_data_full, model)
+      sr, sp, vl, a, au, vc, ac, acu, accland, accsea, _ = autoregressive_inference(params, ic, valid_data_full, model)
 
       if i ==0 or len(valid_loss) == 0:
         seq_real = sr

@@ -77,6 +77,8 @@ import json
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ruamelDict
 
+from inference import inference
+
 class Trainer():
   def count_parameters(self):
     return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -100,6 +102,12 @@ class Trainer():
     params.crop_size_y = self.valid_dataset.crop_size_y
     params.img_shape_x = self.valid_dataset.img_shape_x
     params.img_shape_y = self.valid_dataset.img_shape_y
+    params.N_in_channels = self.train_dataset.n_in_channels
+    if params.orography:
+      params.N_in_channels += 1
+    params.N_out_channels = self.train_dataset.n_out_channels
+    params.in_names = self.train_dataset.in_names
+    params.out_names = self.train_dataset.out_names
 
     # precip models
     self.precip = True if "precip" in params else False
@@ -198,17 +206,18 @@ class Trainer():
 
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
+      logging.info(f"Epoch: {epoch+1}")
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
 
       start = time.time()
-      tr_time, data_time, train_logs = self.train_one_epoch()
+      _, _, train_logs = self.train_one_epoch()
       valid_time, valid_logs = self.validate_one_epoch()
+      inference_logs = self.inference_one_epoch()
+
       if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
         valid_weighted_rmse = self.validate_final()
-
-
 
       if self.params.scheduler == 'ReduceLROnPlateau':
         self.scheduler.step(valid_logs['valid_loss'])
@@ -217,11 +226,6 @@ class Trainer():
         if self.epoch >= self.params.max_epochs:
           logging.info("Terminating training after reaching params.max_epochs while LR scheduler is set to CosineAnnealingLR")
           exit()
-
-      if self.params.log_to_wandb:
-        for pg in self.optimizer.param_groups:
-          lr = pg['lr']
-        wandb.log({'lr': lr})
 
       if self.world_rank == 0:
         if self.params.save_checkpoint:
@@ -239,6 +243,11 @@ class Trainer():
 #        if epoch==self.params.max_epochs-1 and self.params.prediction_type == 'direct':
 #          logging.info('Final Valid RMSE: Z500- {}. T850- {}, 2m_T- {}'.format(valid_weighted_rmse[0], valid_weighted_rmse[1], valid_weighted_rmse[2]))
 
+      if self.params.log_to_wandb:
+        logging.info("Logging to wandb")
+        for pg in self.optimizer.param_groups:
+          lr = pg['lr']
+        wandb.log({**train_logs, **valid_logs, **inference_logs, **{'lr': lr}}, step=self.epoch)
 
 
   def train_one_epoch(self):
@@ -309,9 +318,6 @@ class Trainer():
       for key in sorted(logs.keys()):
         dist.all_reduce(logs[key].detach())
         logs[key] = float(logs[key]/dist.get_world_size())
-
-    if self.params.log_to_wandb:
-      wandb.log(logs, step=self.epoch)
 
     return tr_time, data_time, logs
 
@@ -456,9 +462,30 @@ class Trainer():
         fig = vis_precip(fields)
         logs['vis'] = wandb.Image(fig)
         plt.close(fig)
-      wandb.log({**logs, **grad_mag_logs, **image_logs}, step=self.epoch)
 
-    return valid_time, logs
+    validation_logs = {**logs, **grad_mag_logs, **image_logs}
+    return valid_time, validation_logs
+
+  def inference_one_epoch(self):
+    logging.info("Starting inference on validation set...")
+    import copy
+    with torch.no_grad():
+      inference_params = copy.copy(self.params)
+      inference_params.means = self.valid_dataset.out_means[0]
+      inference_params.stds = self.valid_dataset.out_stds[0]
+      inference_params.time_means = self.valid_dataset.out_time_means[0]
+      inference_params.use_daily_climatology = False  # TODO(gideond) default value?
+      inference_params.interp = 0  # TODO(gideond) default value?
+      inference_params.epoch = self.epoch
+      inference_params.iters = self.iters
+      inference_params.get_data_loader = False
+      inference_params.log_on_each_unroll_step_inference = False
+      inference_params.log_to_wandb = True
+      inference_params.log_to_screen = False  # reduce noise in logs
+      _, _, _, _, _, _, _, _, _, _, inference_logs = inference.autoregressive_inference(
+         inference_params, 0, self.valid_dataset.data_array, self.model)
+    
+    return inference_logs
 
   def validate_final(self):
     self.model.eval()
@@ -626,15 +653,6 @@ if __name__ == '__main__':
 
   params['log_to_wandb'] = (world_rank==0) and params['log_to_wandb']
   params['log_to_screen'] = (world_rank==0) and params['log_to_screen']
-
-  params['in_channels'] = np.array(params['in_channels'])
-  params['out_channels'] = np.array(params['out_channels'])
-  if params.orography:
-    params['N_in_channels'] = len(params['in_channels']) +1
-  else:
-    params['N_in_channels'] = len(params['in_channels'])
-
-  params['N_out_channels'] = len(params['out_channels'])
 
   if world_rank == 0:
     hparams = ruamelDict()
