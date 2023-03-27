@@ -164,7 +164,7 @@ def _save_to_tmpfile(data, dir, filetype='h5'):
         return f.name
 
 def test_train_runs_era5():
-    """Make sure that the training runs without errors."""
+    """Make sure that training runs without errors."""
 
     # TODO(gideond) parameterize
     seed = 0
