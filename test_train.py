@@ -142,7 +142,6 @@ def _get_test_yaml_file(train_data_path,
 
        add_noise: !!bool False
        noise_std: 0
-
     """
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
@@ -203,5 +202,3 @@ def test_train_runs_era5():
 
         trainer = Trainer(params, world_rank)
         trainer.train()
-
-test_train_runs_era5()
