@@ -71,6 +71,7 @@ import glob
 from datetime import datetime
 
 import tempfile
+import subprocess
 
 def _get_test_yaml_file(train_data_path, 
                         valid_data_path, 
@@ -144,7 +145,7 @@ def _get_test_yaml_file(train_data_path,
        noise_std: 0
     """
 
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.yaml') as f:
         f.write(string)
         return f.name
 
@@ -189,16 +190,6 @@ def test_train_runs_era5():
         yaml_config = _get_test_yaml_file(
             train_dir, valid_dir, valid_dir, 
             results_dir, time_means, global_means, global_stds, prediction_length = num_time_steps)
-        params = YParams(yaml_config, "unit_test")
-        params['experiment_dir'] = results_dir
-        params. N_in_channels = num_channels
-        params. N_out_channels = num_channels
-        params.enable_amp = True  # seems to be the common default
-        params.log_to_wandb = False
-        params.resuming = False  # do not use checkpoint
-        params.save_checkpoint = False
-        params.roll = False
-        world_rank = 0
 
-        trainer = Trainer(params, world_rank)
-        trainer.train()
+        train_process = subprocess.run(['python', 'train.py', '--yaml_config', yaml_config, '--config', 'unit_test'])
+        train_process.check_returncode()
