@@ -31,47 +31,10 @@
 #The code was authored by the following people:
 #Gideon Dresdner <gideond@allenai.org>
 
-# TODO(gideond) imports
-
-import os
-import sys
-import time
-from train import Trainer
-import numpy as np
-import argparse
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + '/../')
-from numpy.core.numeric import False_
 import h5py
-import torch
-import torchvision
-from torchvision.utils import save_image
-import torch.nn as nn
-import torch.cuda.amp as amp
-import torch.distributed as dist
-from collections import OrderedDict
-from torch.nn.parallel import DistributedDataParallel
-import logging
-from utils import logging_utils
-from utils.weighted_acc_rmse import (
-    weighted_rmse_torch_channels,
-    weighted_acc_torch_channels,
-    unweighted_acc_torch_channels,
-    weighted_acc_masked_torch_channels,
-    weighted_global_mean_channels,
-    weighted_global_mean_gradient_magnitude_channels,
-)
-logging_utils.config_logger()
-from utils.YParams import YParams
-from utils.data_loader_multifiles import get_data_loader
-from utils.constants import CHANNEL_NAMES
-from networks.afnonet import AFNONet
-import wandb
-import matplotlib.pyplot as plt
-import glob
-from datetime import datetime
-
-import tempfile
+import numpy as np
 import subprocess
+import tempfile
 
 def _get_test_yaml_file(train_data_path, 
                         valid_data_path, 
@@ -159,7 +122,7 @@ def _save_to_tmpfile(data, dir, filetype='h5'):
             with h5py.File(f.name, 'w') as hf:
                 hf.create_dataset('fields', data=data)
         elif filetype == 'npy':
-            np.save(f.name, data)  # TODO(gideond) allow_pickle?
+            np.save(f.name, data)
         else:
             raise ValueError(f'Unknown save format {filetype}')
         return f.name
