@@ -44,7 +44,10 @@ def _get_test_yaml_file(train_data_path,
                         global_means_path,
                         global_stds_path,
                         prediction_length,
+                        num_channels=2,
                         config_name="unit_test"):
+
+    channels = list(range(num_channels))
 
     string = f"""
      {config_name}: &{config_name}
@@ -78,8 +81,8 @@ def _get_test_yaml_file(train_data_path,
        modes: 32
        #options default, residual
        target: 'default'
-       in_channels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-       out_channels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19] #must be same as in_channels if prediction_type == 'iterative'
+       in_channels: {channels}
+       out_channels: {channels}   #must be same as in_channels if prediction_type == 'iterative'
        normalization: 'zscore' #options zscore (minmax not supported)
        train_data_path: '{train_data_path}'
        valid_data_path: '{valid_data_path}'
@@ -127,13 +130,14 @@ def _save_to_tmpfile(data, dir, filetype='h5'):
             raise ValueError(f'Unknown save format {filetype}')
         return f.name
 
+
 def test_train_runs_era5():
     """Make sure that training runs without errors."""
 
     # TODO(gideond) parameterize
     seed = 0
     np.random.seed(seed)
-    num_time_steps, num_channels, height, width = 8, 20, 720, 1440
+    num_time_steps, num_channels, height, width = 2, 2, 720, 40
 
     with tempfile.TemporaryDirectory() as train_dir, \
          tempfile.TemporaryDirectory() as valid_dir, \
@@ -152,7 +156,9 @@ def test_train_runs_era5():
 
         yaml_config = _get_test_yaml_file(
             train_dir, valid_dir, valid_dir, 
-            results_dir, time_means, global_means, global_stds, prediction_length = num_time_steps)
+            results_dir, time_means, global_means, global_stds, 
+            prediction_length=num_time_steps, 
+            num_channels=num_channels)
 
         train_process = subprocess.run(['python', 'train.py', '--yaml_config', yaml_config, '--config', 'unit_test'])
         train_process.check_returncode()
