@@ -65,7 +65,7 @@ def _get_test_yaml_file(train_data_path,
        orography_path: None
 
        log_to_screen: !!bool True
-       log_to_wandb: !!bool True
+       log_to_wandb: !!bool False
        save_checkpoint: !!bool True
 
        enable_nhwc: !!bool False
