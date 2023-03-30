@@ -145,7 +145,7 @@ class Trainer():
      
     # precip model
     if self.precip:
-      self.model = PrecipNet(params, backbone=self.model_wind).to(self.device)
+      self.model = PrecipNet(params, backbone=self.model).to(self.device)
 
     if self.params.enable_nhwc:
       # NHWC: Convert model to channels_last memory format
