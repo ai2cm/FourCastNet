@@ -206,7 +206,8 @@ class Trainer():
 
     best_valid_loss = 1.e6
     for epoch in range(self.startEpoch, self.params.max_epochs):
-      logging.info(f"Epoch: {epoch+1}")
+      if self.params.log_to_screen:
+        logging.info(f"Epoch: {epoch+1}")
       if dist.is_initialized():
         self.train_sampler.set_epoch(epoch)
 #        self.valid_sampler.set_epoch(epoch)
@@ -471,7 +472,8 @@ class Trainer():
     return valid_time, validation_logs
 
   def inference_one_epoch(self):
-    logging.info("Starting inference on validation set...")
+    if self.params.log_to_screen:
+      logging.info("Starting inference on validation set...")
     import copy
     with torch.no_grad():
       inference_params = copy.copy(self.params)
