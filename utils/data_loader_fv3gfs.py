@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 import netCDF4
 from utils.constants import CHANNEL_NAMES
-from utils.img_utils import reshape_fields
+from utils.img_utils import reshape_fields, reshape_precip
 
 # conversion from 'standard' names defined in utils/constants.py to those
 # in FV3GFS output netCDFs
@@ -36,8 +36,9 @@ FV3GFS_NAMES = {
 class FV3GFSDataset(Dataset):
     def __init__(self, params: MutableMapping, path: str, train: bool):
         self.params = params
-        self._check_for_not_implemented_features()
+        self.precip = True if "precip" in params else False
         self._resolve_channels_and_names()
+        self._check_for_not_implemented_features()
         self.path = path
         self.full_path = os.path.join(path, "*.nc")
         self.train = train
@@ -48,7 +49,6 @@ class FV3GFSDataset(Dataset):
         self.roll = params.roll
         self.two_step_training = params.two_step_training
         self.orography = params.orography
-        self.precip = True if "precip" in params else False
         self.add_noise = params.add_noise if train else False
         self.normalize = params.normalize if "normalize" in params else True
         self._get_files_stats()
@@ -73,6 +73,9 @@ class FV3GFSDataset(Dataset):
             raise NotImplementedError(msg)
         if self.params.add_grid:
             raise NotImplementedError("add_grid not implemented for FV3GFSDataset")
+        if self.precip and self.n_out_channels > 1:
+            msg = "can only have one output for diagnostic model for FV3GFSDataset"
+            raise NotImplementedError(msg)
 
     def _resolve_channels_and_names(self):
         if "in_channels" in self.params and "in_names" in self.params:
@@ -155,21 +158,34 @@ class FV3GFSDataset(Dataset):
             self.orography,
             self.add_noise,
         )
-        out_tensor = reshape_fields(
-            out_array,
-            "tar",
-            self.crop_size_x,
-            self.crop_size_y,
-            0,
-            0,
-            self.params,
-            self.roll,
-            self.train,
-            self.out_means,
-            self.out_stds,
-            self.normalize,
-            self.orography,
-        )
+        if self.precip:
+            out_tensor = reshape_precip(
+                out_array,
+                "tar",
+                self.crop_size_x,
+                self.crop_size_y,
+                0,
+                0,
+                self.params,
+                self.roll,
+                self.train,
+            )
+        else:
+            out_tensor = reshape_fields(
+                out_array,
+                "tar",
+                self.crop_size_x,
+                self.crop_size_y,
+                0,
+                0,
+                self.params,
+                self.roll,
+                self.train,
+                self.out_means,
+                self.out_stds,
+                self.normalize,
+                self.orography,
+            )
         return in_tensor, out_tensor
 
 def load_arrays_from_netcdf(path, in_names, out_names):

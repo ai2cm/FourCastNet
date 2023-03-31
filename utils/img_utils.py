@@ -150,7 +150,10 @@ def reshape_precip(img, inp_or_tar, crop_size_x, crop_size_y,rnd_x, rnd_y, param
     if len(np.shape(img)) ==2:
       img = np.expand_dims(img, 0)
 
-    img = img[:,:720,:]
+    if img.shape[1] > 720:
+        # this might be necessary for ERA5 data
+        img = img[:, 0:720, :] #remove last pixel
+
     img_shape_x = img.shape[-2]
     img_shape_y = img.shape[-1]
     n_channels = 1
