@@ -5,7 +5,7 @@ CONFIG_SETTING=full_field
 
 # run training
 export WANDB_JOB_TYPE=training
-torchrun --nproc_per_node 8 /opt/ERA5_wind/train.py --yaml_config $YAML_CONFIG --config $CONFIG_SETTING
+torchrun --nproc_per_node 1 /opt/ERA5_wind/train.py --yaml_config $YAML_CONFIG --config $CONFIG_SETTING
 
 # run inference
 #export WANDB_JOB_TYPE=inference
