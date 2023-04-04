@@ -8,7 +8,7 @@ export WANDB_RUN_GROUP=fourcastnet-train-and-inference-$WANDB_UUID
 
 # run training
 export WANDB_JOB_TYPE=training
-torchrun --nproc_per_node 1 /opt/ERA5_wind/train.py --yaml_config $YAML_CONFIG --config $CONFIG_SETTING
+torchrun --nproc_per_node $NPROC_PER_NODE /opt/ERA5_wind/train.py --yaml_config $YAML_CONFIG --config $CONFIG_SETTING
 
 echo ===============================================================================
 echo ======================FINISHED TRAINING STARTING INFERENCE=====================
