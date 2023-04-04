@@ -2,6 +2,8 @@
 
 YAML_CONFIG=/configmount/config.yaml
 CONFIG_SETTING=full_field
+WANDB_UUID=$(python -c "import wandb; print(wandb.util.generate_id())")
+WANDB_RUN_GROUP=fourcastnet-train-and-inference-$WANDB_UUID
 
 # run training
 export WANDB_JOB_TYPE=training
