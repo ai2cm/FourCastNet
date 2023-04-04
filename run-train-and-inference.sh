@@ -1,7 +1,8 @@
 #!/bin/bash
 
-YAML_CONFIG=/configmount/config.yaml
-CONFIG_SETTING=full_field
+YAML_CONFIG=$1
+CONFIG_SETTING=$2
+NPROC_PER_NODE=$3
 WANDB_UUID=$(python -c "import wandb; print(wandb.util.generate_id())")
 export WANDB_RUN_GROUP=fourcastnet-train-and-inference-$WANDB_UUID
 
