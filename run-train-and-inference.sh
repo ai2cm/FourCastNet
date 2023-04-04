@@ -4,8 +4,7 @@ YAML_CONFIG=$1
 CONFIG_SETTING=$2
 NPROC_PER_NODE=$3
 
-WANDB_UUID=$(python -c "import wandb; print(wandb.util.generate_id())")
-export WANDB_RUN_GROUP=$WANDB_NAME-$WANDB_UUID
+export WANDB_RUN_GROUP="tr-and-inf"
 
 # run training
 export WANDB_JOB_TYPE=training
