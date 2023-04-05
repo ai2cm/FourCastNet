@@ -327,8 +327,7 @@ def autoregressive_inference(params, ic, valid_data_full, model):
     # leave it as an empty dict.
     inference_logs = {}
     if params.log_to_wandb:
-      # inspect snapshot times at 5-days and 10-days.
-      snapshot_timesteps = [(24 // 6 * k, f"{k}-days") for k in [5, 10]]
+      snapshot_timesteps = [(24 // 6 * k, f"{k}-days") for k in params.snapshot_time_steps]
 
       # TODO(gideond) move these names to a higher-level to avoid potential bugs
       metric_names = ['rmse', 'acc', 'global_mean_prediction', 'global_mean_target', 'global_mean_gradient_magnitude_prediction', 'global_mean_gradient_magnitude_target']
