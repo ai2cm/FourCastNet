@@ -185,13 +185,25 @@ def weighted_global_mean_gradient_magnitude_channels(pred: torch.Tensor) -> torc
     # workaround for https://github.com/pytorch/pytorch/issues/67919
     if pred.shape[0] == 1:
         workaround = True
-        pred_ = torch.cat((pred, pred), dim=0)
+        concat_dim = 0
+    elif pred.shape[1] == 1:
+        workaround = True
+        concat_dim = 1
     else:
         workaround = False
-        pred_ = pred
-    gradient_x, gradient_y = torch.gradient(pred_, dim=(-1, -2))
+        concat_dim = 0
+
     if workaround:
-        gradient_x, gradient_y = gradient_x[0], gradient_y[0]
+        pred_ = torch.cat((pred, pred), dim=concat_dim)
+    else:
+        pred_ = pred
+
+    gradient_x, gradient_y = torch.gradient(pred_, dim=(-1, -2))
+
+    if workaround:
+        gradient_x = gradient_x.select(concat_dim, 0).unsqueeze(concat_dim)
+        gradient_y = gradient_y.select(concat_dim, 0).unsqueeze(concat_dim)
+
     gradient_magnitude = torch.sqrt(gradient_x**2 + gradient_y**2)
     result = torch.mean(weight * gradient_magnitude, dim=(-1,-2))
     return result
