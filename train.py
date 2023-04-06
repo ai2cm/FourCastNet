@@ -91,6 +91,7 @@ class Trainer():
 
     if params.log_to_wandb:
       wandb.init(config=params, project=params.project, entity=params.entity)
+      logging_utils.write_to_metrics_file("training_wandb", wandb.run.get_url())
 
     logging.info('rank %d, begin data loader init'%world_rank)
     self.train_data_loader, self.train_dataset, self.train_sampler = get_data_loader(params, params.train_data_path, dist.is_initialized(), train=True)

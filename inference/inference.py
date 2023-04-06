@@ -412,6 +412,7 @@ if __name__ == '__main__':
 
     if params.log_to_wandb:
        wandb.init(config=params, project='fourcastnet-era5', entity='ai2cm')
+       logging_utils.write_to_metrics_file("inference_wandb", wandb.run.get_url())
 
     n_ics = params['n_initial_conditions']
 
